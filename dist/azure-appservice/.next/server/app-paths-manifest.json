@@ -1,0 +1,19 @@
+{
+  "/(public)/comunidades/[slug]/page": "app/(public)/comunidades/[slug]/page.js",
+  "/[slug]/page": "app/[slug]/page.js",
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/communities/[slug]/news/route": "app/api/communities/[slug]/news/route.js",
+  "/api/dbtest/route": "app/api/dbtest/route.js",
+  "/api/debug/auth-check/route": "app/api/debug/auth-check/route.js",
+  "/api/public/communities/route": "app/api/public/communities/route.js",
+  "/api/util/hash/route": "app/api/util/hash/route.js",
+  "/debug-session/page": "app/debug-session/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/health/route": "app/health/route.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/post-login/page": "app/post-login/page.js",
+  "/unauthorized/page": "app/unauthorized/page.js"
+}

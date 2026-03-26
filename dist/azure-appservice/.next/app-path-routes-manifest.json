@@ -1,0 +1,19 @@
+{
+  "/(public)/comunidades/[slug]/page": "/comunidades/[slug]",
+  "/[slug]/page": "/[slug]",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/communities/[slug]/news/route": "/api/communities/[slug]/news",
+  "/api/dbtest/route": "/api/dbtest",
+  "/api/debug/auth-check/route": "/api/debug/auth-check",
+  "/api/public/communities/route": "/api/public/communities",
+  "/api/util/hash/route": "/api/util/hash",
+  "/debug-session/page": "/debug-session",
+  "/favicon.ico/route": "/favicon.ico",
+  "/health/route": "/health",
+  "/login/page": "/login",
+  "/page": "/",
+  "/post-login/page": "/post-login",
+  "/unauthorized/page": "/unauthorized"
+}

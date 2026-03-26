@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal Conexion Circular
 
-## Getting Started
+Aplicacion `Next.js 16` con `NextAuth`, SQL Server (`mssql`) y despliegue preparado para `Azure App Service` en Linux.
 
-First, run the development server:
+## Desarrollo local
 
-```bash
+```powershell
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+La app usa variables de entorno para autenticacion y base de datos. Toma como base [`.env.example`](./.env.example) y define tus valores locales en `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Azure App Service
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Se recomienda `App Service Linux` con `Node 22 LTS`.
 
-## Learn More
+### 1. Crear infraestructura
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+az login
+az group create --name <resource-group> --location eastus
+az appservice plan create --name <plan-name> --resource-group <resource-group> --sku B1 --is-linux
+az webapp create --name <app-name> --resource-group <resource-group> --plan <plan-name> --runtime "NODE|22-lts"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Configurar variables en Azure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```powershell
+az webapp config appsettings set `
+  --name <app-name> `
+  --resource-group <resource-group> `
+  --settings `
+    NEXTAUTH_SECRET="<secreto>" `
+    NEXTAUTH_URL="https://<app-name>.azurewebsites.net" `
+    NEXT_PUBLIC_BASE_URL="https://<app-name>.azurewebsites.net" `
+    DEFAULT_PAGE_PATH="/" `
+    SQLSERVER_CONN="<connection-string>"
+```
 
-## Deploy on Vercel
+Si usas variables separadas para SQL, define `DB_SERVER`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y opcionalmente `DB_ENCRYPT`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 3. Generar el paquete para App Service
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```powershell
+npm run package:azure
+Compress-Archive -Path .\dist\azure-appservice\* -DestinationPath .\dist\azure-appservice.zip -Force
+```
+
+### 4. Configurar startup command
+
+El paquete generado queda listo para arrancar con `server.js`:
+
+```powershell
+az webapp config set `
+  --name <app-name> `
+  --resource-group <resource-group> `
+  --startup-file "node server.js"
+```
+
+### 5. Subir el paquete
+
+```powershell
+az webapp deploy `
+  --name <app-name> `
+  --resource-group <resource-group> `
+  --src-path .\dist\azure-appservice.zip `
+  --type zip
+```
+
+### 5.b. Despliegue con GitHub Actions
+
+El repositorio incluye el workflow [.github/workflows/deploy-azure-appservice.yml](.github/workflows/deploy-azure-appservice.yml), que compila en `ubuntu-latest`, genera `dist/azure-appservice.zip` y lo despliega a Azure App Service.
+
+Configura estos secretos en GitHub:
+
+- `AZURE_WEBAPP_NAME`: nombre del Web App en Azure.
+- `AZURE_WEBAPP_PUBLISH_PROFILE`: contenido completo del publish profile descargado desde Azure Portal.
+
+Pasos:
+
+1. En Azure Portal, abre tu App Service.
+2. Descarga el `Publish Profile`.
+3. En GitHub, ve a `Settings > Secrets and variables > Actions`.
+4. Crea los dos secretos anteriores.
+5. Ejecuta el workflow manualmente desde `Actions`, o haz push a la rama `main`.
+
+### 6. Verificacion
+
+- Health check disponible en `/health`
+- Login requiere `NEXTAUTH_SECRET` y `NEXTAUTH_URL` correctos
+- Las paginas publicas que consumen API interna requieren `NEXT_PUBLIC_BASE_URL`
+- Si la base de datos es Azure SQL, revisa el firewall o Private Endpoint para permitir trafico desde App Service
+
+## Notas operativas
+
+- No subas `.env.local` al repositorio.
+- Este proyecto usa `output: "standalone"` para generar un artefacto mas pequeno y estable para Azure.
+- Si prefieres CI/CD, puedes conectar el repo desde Deployment Center o usar GitHub Actions con `azure/webapps-deploy`.

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/auth/[...nextauth]": {},
+    "/api/communities/[slug]/news": {},
+    "/api/debug/auth-check": {},
+    "/api/util/hash": {},
+    "/debug-session": {},
+    "/unauthorized": {},
+    "/post-login": {},
+    "/comunidades/[slug]": {}
+  }
+}
