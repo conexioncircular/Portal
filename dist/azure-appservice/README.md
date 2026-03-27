@@ -68,6 +68,23 @@ az webapp deploy `
   --type zip
 ```
 
+### 5.b. Despliegue con GitHub Actions
+
+El repositorio incluye el workflow [.github/workflows/deploy-azure-appservice.yml](.github/workflows/deploy-azure-appservice.yml), que compila en `ubuntu-latest`, genera `dist/azure-appservice.zip` y lo despliega a Azure App Service.
+
+Configura estos secretos en GitHub:
+
+- `AZURE_WEBAPP_NAME`: nombre del Web App en Azure.
+- `AZURE_WEBAPP_PUBLISH_PROFILE`: contenido completo del publish profile descargado desde Azure Portal.
+
+Pasos:
+
+1. En Azure Portal, abre tu App Service.
+2. Descarga el `Publish Profile`.
+3. En GitHub, ve a `Settings > Secrets and variables > Actions`.
+4. Crea los dos secretos anteriores.
+5. Ejecuta el workflow manualmente desde `Actions`, o haz push a la rama `main`.
+
 ### 6. Verificacion
 
 - Health check disponible en `/health`

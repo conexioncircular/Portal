@@ -3,11 +3,11 @@
   "functions": {
     "/api/auth/[...nextauth]": {},
     "/api/communities/[slug]/news": {},
-    "/api/debug/auth-check": {},
     "/api/util/hash": {},
+    "/api/debug/auth-check": {},
     "/debug-session": {},
-    "/unauthorized": {},
     "/post-login": {},
+    "/unauthorized": {},
     "/comunidades/[slug]": {}
   }
 }

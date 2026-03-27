@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "package:azure": "node -e \"require('node:fs').rmSync('dist',{ recursive: true, force: true })\" && npm run build && node scripts/prepare-azure-package.mjs",
-    "start": "next start",
+    "start": "node server.js",
     "start:standalone": "node .next/standalone/server.js",
     "lint": "eslint"
   },
