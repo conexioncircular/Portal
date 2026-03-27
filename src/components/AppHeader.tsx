@@ -53,6 +53,7 @@ export default function AppHeader({
   const pathname = usePathname() || "/";
   const router = useRouter();
   const effectiveLogoSrc = pathname === "/login" ? "/conexion-energia.png" : logoSrc;
+  const effectiveLogoAlt = pathname === "/login" ? "Conexión Energía" : logoAlt;
 
   useEffect(() => {
     let mounted = true;
@@ -103,7 +104,7 @@ export default function AppHeader({
         <div className="flex items-center sm:hidden">
           <MobileNav
             logoSrc={effectiveLogoSrc}
-            logoAlt={logoAlt}
+            logoAlt={effectiveLogoAlt}
             communities={communities}
             onSelect={handleCommunityClick}
             user={effectiveUser}
@@ -114,13 +115,13 @@ export default function AppHeader({
         <Link href="/post-login" className="flex items-center gap-2">
           <Image
             src={effectiveLogoSrc}
-            alt={logoAlt}
+            alt={effectiveLogoAlt}
             width={36}
             height={36}
             className="h-9 w-9 rounded-full object-contain"
           />
           <span className="hidden text-lg font-semibold tracking-tight sm:inline">
-            {logoAlt}
+            {effectiveLogoAlt}
           </span>
         </Link>
 
