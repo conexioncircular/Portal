@@ -23,7 +23,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Menu as MenuIcon, Bell, LogOut, Home, Search } from "lucide-react";
+import {
+  ChevronDown,
+  Menu as MenuIcon,
+  Bell,
+  LogOut,
+  Home,
+  Search,
+} from "lucide-react";
 
 type CommunityRow = { Title: string; Path: string; LogoUrl?: string | null };
 
@@ -40,6 +47,14 @@ interface AppHeaderProps {
   showSearch?: boolean;
 }
 
+const PUBLIC_ROUTES = ["/", "/politica-de-seguridad"];
+
+const PUBLIC_NAV_ITEMS = [
+  { label: "Inicio", href: "/" },
+  { label: "Comunidades", href: "/#comunidades" },
+  { label: "Política de seguridad", href: "/politica-de-seguridad" },
+];
+
 export default function AppHeader({
   logoSrc = "/LOGO-2.png",
   logoAlt = "Conexión Circular",
@@ -52,11 +67,17 @@ export default function AppHeader({
   const [communities, setCommunities] = useState<CommunityRow[]>([]);
   const pathname = usePathname() || "/";
   const router = useRouter();
+
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+
   const effectiveLogoSrc = pathname === "/login" ? "/conexion-energia.png" : logoSrc;
   const effectiveLogoAlt = pathname === "/login" ? "Conexión Energía" : logoAlt;
 
   useEffect(() => {
+    if (isPublicRoute) return;
+
     let mounted = true;
+
     (async () => {
       try {
         const res = await fetch("/api/public/communities", {
@@ -64,12 +85,15 @@ export default function AppHeader({
           credentials: "include",
         });
         const data = await res.json();
+
         if (!mounted) return;
+
         const rows = Array.isArray(data)
           ? data
           : Array.isArray(data?.communities)
           ? data.communities
           : [];
+
         setCommunities(rows);
       } catch (err) {
         console.error("Error al cargar comunidades:", err);
@@ -77,16 +101,15 @@ export default function AppHeader({
         setCommunities([]);
       }
     })();
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isPublicRoute]);
 
   const activeCommunity = useMemo(() => {
     const cur = pathname.toLowerCase();
-    return (
-      communities.find((c) => (c.Path || "").toLowerCase() === cur) ?? null
-    );
+    return communities.find((c) => (c.Path || "").toLowerCase() === cur) ?? null;
   }, [communities, pathname]);
 
   const initials = (txt?: string | null) =>
@@ -97,10 +120,19 @@ export default function AppHeader({
     if (p) router.push(p);
   };
 
+  if (isPublicRoute) {
+    return (
+      <PublicHeader
+        logoSrc={logoSrc}
+        logoAlt={logoAlt}
+        pathname={pathname}
+      />
+    );
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
-        {/* Mobile menu */}
         <div className="flex items-center sm:hidden">
           <MobileNav
             logoSrc={effectiveLogoSrc}
@@ -111,7 +143,6 @@ export default function AppHeader({
           />
         </div>
 
-        {/* Logo */}
         <Link href="/post-login" className="flex items-center gap-2">
           <Image
             src={effectiveLogoSrc}
@@ -125,7 +156,6 @@ export default function AppHeader({
           </span>
         </Link>
 
-        {/* Selector de comunidad */}
         {communities.length > 0 && (
           <div className="ml-2 hidden sm:block">
             <DropdownMenu>
@@ -157,6 +187,7 @@ export default function AppHeader({
                         <AvatarFallback>{initials(c.Title)}</AvatarFallback>
                       </Avatar>
                     )}
+
                     <div className="min-w-0">
                       <div className="truncate font-medium">{c.Title}</div>
                       <div className="truncate text-xs text-muted-foreground">
@@ -172,12 +203,11 @@ export default function AppHeader({
 
         <div className="flex-1" />
 
-        {/* Search + user menu */}
         <div className="hidden items-center gap-2 sm:flex">
           {showSearch && (
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
-              <Input placeholder="Buscar…" className="pl-8 w-56" />
+              <Input placeholder="Buscar…" className="w-56 pl-8" />
             </div>
           )}
 
@@ -190,9 +220,14 @@ export default function AppHeader({
               <Button variant="ghost" className="flex items-center gap-2">
                 <Avatar className="h-7 w-7">
                   {effectiveUser?.image && (
-                    <AvatarImage src={effectiveUser.image} alt={effectiveUser?.name ?? "Usuario"} />
+                    <AvatarImage
+                      src={effectiveUser.image}
+                      alt={effectiveUser?.name ?? "Usuario"}
+                    />
                   )}
-                  <AvatarFallback>{initials(effectiveUser?.name || effectiveUser?.email)}</AvatarFallback>
+                  <AvatarFallback>
+                    {initials(effectiveUser?.name || effectiveUser?.email)}
+                  </AvatarFallback>
                 </Avatar>
                 <span className="max-w-[160px] truncate text-sm">
                   {effectiveUser?.name || effectiveUser?.email || "Usuario"}
@@ -200,6 +235,7 @@ export default function AppHeader({
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -224,7 +260,131 @@ export default function AppHeader({
   );
 }
 
-// -------------------- Mobile Nav --------------------
+function PublicHeader({
+  logoSrc,
+  logoAlt,
+  pathname,
+}: {
+  logoSrc: string;
+  logoAlt: string;
+  pathname: string;
+}) {
+  const isSecurity = pathname === "/politica-de-seguridad";
+  const isHome = pathname === "/";
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-black/5 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
+      <div className="mx-auto flex h-28 max-w-7xl items-center px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-3">
+          <Image
+            src={logoSrc}
+            alt={logoAlt}
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
+          />
+          <span className="text-[2rem] font-semibold tracking-tight text-[#111827]">
+            {logoAlt}
+          </span>
+        </Link>
+
+        <div className="hidden flex-1 justify-center lg:flex">
+          <nav className="inline-flex items-center gap-3 rounded-[24px] border border-black/10 bg-white px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+            <Link
+              href="/"
+              className={`rounded-full px-6 py-3 text-lg font-medium transition ${
+                isHome
+                  ? "bg-[#22d3c5] text-[#111827]"
+                  : "text-[#6b7280] hover:bg-[#f5f5f5] hover:text-[#111827]"
+              }`}
+            >
+              Inicio
+            </Link>
+
+            <Link
+              href="/#comunidades"
+              className="rounded-full px-6 py-3 text-lg font-medium text-[#6b7280] transition hover:bg-[#f5f5f5] hover:text-[#111827]"
+            >
+              Comunidades
+            </Link>
+
+            <Link
+              href="/politica-de-seguridad"
+              className={`rounded-full px-6 py-3 text-lg font-medium transition ${
+                isSecurity
+                  ? "bg-[#f3f4f6] text-[#111827]"
+                  : "text-[#6b7280] hover:bg-[#f5f5f5] hover:text-[#111827]"
+              }`}
+            >
+              Política de seguridad
+            </Link>
+          </nav>
+        </div>
+
+        <div className="ml-auto hidden lg:flex">
+          <Link
+            href="/login"
+            className="rounded-full bg-[#0f172a] px-8 py-4 text-lg font-semibold text-white transition hover:bg-black"
+          >
+            Ingresar
+          </Link>
+        </div>
+
+        <div className="ml-auto lg:hidden">
+          <PublicMobileNav logoSrc={logoSrc} logoAlt={logoAlt} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function PublicMobileNav({
+  logoSrc,
+  logoAlt,
+}: {
+  logoSrc: string;
+  logoAlt: string;
+}) {
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MenuIcon className="h-6 w-6" />
+        </Button>
+      </SheetTrigger>
+
+      <SheetContent side="right" className="w-80 p-0">
+        <SheetHeader className="px-4 pb-2 pt-4">
+          <div className="flex items-center gap-2">
+            <Image
+              src={logoSrc}
+              alt={logoAlt}
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
+            <SheetTitle className="text-base">{logoAlt}</SheetTitle>
+          </div>
+        </SheetHeader>
+
+        <nav className="space-y-3 px-4 pb-6 pt-4">
+          {PUBLIC_NAV_ITEMS.map((item) => (
+            <Button key={item.href} asChild variant="ghost" className="w-full justify-start">
+              <Link href={item.href}>{item.label}</Link>
+            </Button>
+          ))}
+
+          <div className="pt-2">
+            <Button asChild className="w-full">
+              <Link href="/login">Ingresar</Link>
+            </Button>
+          </div>
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function MobileNav({
   logoSrc,
   logoAlt,
@@ -248,6 +408,7 @@ function MobileNav({
           <MenuIcon className="h-6 w-6" />
         </Button>
       </SheetTrigger>
+
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="px-4 pb-2 pt-4">
           <div className="flex items-center gap-2">
@@ -315,6 +476,7 @@ function MobileNav({
                 </div>
               </div>
             </div>
+
             <div className="flex gap-2">
               <Button className="flex-1" asChild>
                 <Link href="/post-login">Panel</Link>
@@ -323,6 +485,7 @@ function MobileNav({
                 <Link href="/perfil">Perfil</Link>
               </Button>
             </div>
+
             <Button
               variant="destructive"
               className="w-full"

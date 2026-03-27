@@ -1,4 +1,3 @@
-import CenteredLogo from "../../components/CenteredLogo";
 import HeroBanner from "../../components/HeroBanner";
 import CtaMatrix from "../../components/CtaMatrix";
 import MediaBlock from "../../components/MediaBlock";
@@ -6,32 +5,30 @@ import WhatsAppFloating from "../components/WhatsAppFloating";
 
 export default function HomePage() {
   return (
-    <main className="pt-16">
-      
-
-     
-
-      {/* HERO + CTA */}
-      <section className="section">
+    <main className="bg-white">
+      <section className="section pt-4 md:pt-6">
         <HeroBanner
           title="CONECTANDO COMUNIDADES AL MUNDO PARA TRANSFORMAR SUS VIDAS"
           background="/PAGINA-PRINCIPAL.jpg"
           ctas={[
-            { label: "Ingresa a tu Comunidad", href: "/login", variant: "primary" },
+            {
+              label: "Ingresa a tu Comunidad",
+              href: "/login",
+              variant: "primary",
+            },
           ]}
           styleButton={{
             background: "#0f172a",
             color: "white",
             fontWeight: 700,
-            boxShadow: "0 6px 24px rgba(2,6,23,.06), 0 2px 8px rgba(2,6,23,.04)",
-            borderRadius: "12px",
-            padding: "12px 18px",
+            boxShadow: "0 8px 24px rgba(2,6,23,.10)",
+            borderRadius: "16px",
+            padding: "14px 22px",
           }}
         />
       </section>
 
-      {/* MATRIZ 3x3 */}
-      <section className="section section-pad">
+      <section id="comunidades" className="section section-pad scroll-mt-36">
         <CtaMatrix
           items={[
             { label: "Orientación Primaria de Salud", href: "/Orientación-Primaria-Salud" },
@@ -47,39 +44,40 @@ export default function HomePage() {
         />
       </section>
 
-      {/* TÍTULO + VIDEO + MENSAJE */}
       <section className="section section-pad text-center">
-        <h2 className="h2-elegant text-3xl md:text-5xl mb-8">
+        <h2 className="mb-8 text-3xl md:text-5xl h2-elegant">
           Solución tecnológica para el desarrollo y apoyo de comunidades aisladas
         </h2>
 
-        <div className="mx-auto max-w-3xl card overflow-hidden">
+        <div className="card mx-auto max-w-3xl overflow-hidden">
           <video
             src="/principal.mp4"
             controls
-            className="w-full h-auto"
+            className="h-auto w-full"
             poster="/PAGINA-PRINCIPAL.jpg"
           >
             Tu navegador no soporta el video.
           </video>
         </div>
 
-        {/* Mensaje institucional — estilo ejecutivo */}
-        <div className="mx-auto max-w-3xl mt-10 animate-fadeIn">
+        <div className="mx-auto mt-10 max-w-3xl animate-fadeIn">
           <div className="card ring-card">
-            <div className="px-6 py-7 md:py-8 text-left">
-              <p className="text-xs font-semibold tracking-widest text-slate-500 uppercase mb-3">
+            <div className="px-6 py-7 text-left md:py-8">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
                 Conexión Circular
               </p>
-              <p className="text-[17px] md:text-lg leading-8 text-slate-800 dark:text-slate-200">
-                Es un mundo de soluciones tecnológicas sustentables que pone a disposición de las comunidades rurales un equipo multidisciplinario de profesionales destinado exclusivamente a atender sus necesidades. Durante todo el proceso se afianzan los vínculos entre los integrantes de la comunidad y tu Compañía, mejorando sus oportunidades de crecimiento.
+              <p className="text-[17px] leading-8 text-slate-800 md:text-lg dark:text-slate-200">
+                Es un mundo de soluciones tecnológicas sustentables que pone a disposición
+                de las comunidades rurales un equipo multidisciplinario de profesionales
+                destinado exclusivamente a atender sus necesidades. Durante todo el proceso
+                se afianzan los vínculos entre los integrantes de la comunidad y tu Compañía,
+                mejorando sus oportunidades de crecimiento.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* NUESTRO EQUIPO */}
       <section className="section section-pad">
         <MediaBlock
           title="Nuestro Equipo"
@@ -92,7 +90,6 @@ export default function HomePage() {
         />
       </section>
 
-      {/* PLATAFORMA DIGITAL COMUNITARIA */}
       <section className="section section-pad">
         <MediaBlock
           title="Plataforma Digital Comunitaria"
@@ -106,7 +103,6 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Módulo EcoConnect */}
       <section className="section section-pad">
         <MediaBlock
           title="Módulo EcoConnect"
@@ -118,7 +114,6 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Comunidad y Compañía Unidas */}
       <section className="section section-pad">
         <MediaBlock
           title="Comunidad y Compañía Unidas"

@@ -1,3 +1,0 @@
-module.exports=[17869,a=>{"use strict";var b=a.i(87924);let c=encodeURIComponent("Hola! Quiero reportar un problema.");function d({phone:a,preset:d,communityName:e}){let f=d?encodeURIComponent(d):e&&e.trim().length>0?encodeURIComponent(`Hola! Quiero reportar un problema en ${e}.`):c,g=`https://wa.me/${a.replace(/\D/g,"")}?text=${f}`;return(0,b.jsx)("a",{href:g,target:"_blank",rel:"noopener noreferrer",style:{position:"fixed",right:20,bottom:20,background:"#25D366",color:"#fff",borderRadius:9999,padding:"14px 16px",textDecoration:"none",boxShadow:"0 6px 16px rgba(0,0,0,.15)",fontWeight:600,zIndex:50},"aria-label":"Habla con el bot por WhatsApp",children:"WhatsApp"})}a.s(["default",()=>d])}];
-
-//# sourceMappingURL=src_components_WhatsAppFloating_tsx_0bc7e7a9._.js.map
