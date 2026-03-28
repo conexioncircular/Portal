@@ -32,7 +32,11 @@ import {
   Search,
 } from "lucide-react";
 
-type CommunityRow = { Title: string; Path: string; LogoUrl?: string | null };
+type CommunityRow = {
+  Title: string;
+  Path: string;
+  LogoUrl?: string | null;
+};
 
 export type AppUser = {
   name?: string | null;
@@ -47,17 +51,26 @@ interface AppHeaderProps {
   showSearch?: boolean;
 }
 
-const PUBLIC_ROUTES = ["/", "/politica-de-seguridad"];
+const BRAND_DARK = "#1E1A1D";
+const BRAND_BLUE_SOFT = "#EAF8FD";
+
+const PUBLIC_ROUTES = ["/", "/politica-de-seguridad","/Oficina-movil"];
+
+const HIDE_HEADER_ROUTES = ["/login"];
 
 const PUBLIC_NAV_ITEMS = [
   { label: "Inicio", href: "/" },
   { label: "Comunidades", href: "/#comunidades" },
+  { label: "Oficina Móvil", href: "/Oficina-movil" },
   { label: "Política de seguridad", href: "/politica-de-seguridad" },
 ];
 
+const PUBLIC_LOGO = "/LOGO-2.png";
+const PRIVATE_LOGO = "/conexion-energia.png";
+
 export default function AppHeader({
-  logoSrc = "/LOGO-2.png",
-  logoAlt = "Conexión Circular",
+  logoSrc,
+  logoAlt = "Conexión",
   user,
   showSearch = false,
 }: AppHeaderProps) {
@@ -68,13 +81,14 @@ export default function AppHeader({
   const pathname = usePathname() || "/";
   const router = useRouter();
 
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
+ const isPublicRoute =
+  PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
 
-  const effectiveLogoSrc = pathname === "/login" ? "/conexion-energia.png" : logoSrc;
-  const effectiveLogoAlt = pathname === "/login" ? "Conexión Energía" : logoAlt;
+  const effectiveLogoSrc = logoSrc ?? (isPublicRoute ? PUBLIC_LOGO : PRIVATE_LOGO);
 
   useEffect(() => {
-    if (isPublicRoute) return;
+    if (isPublicRoute || hideHeader) return;
 
     let mounted = true;
 
@@ -95,8 +109,8 @@ export default function AppHeader({
           : [];
 
         setCommunities(rows);
-      } catch (err) {
-        console.error("Error al cargar comunidades:", err);
+      } catch (error) {
+        console.error("Error al cargar comunidades:", error);
         if (!mounted) return;
         setCommunities([]);
       }
@@ -105,7 +119,7 @@ export default function AppHeader({
     return () => {
       mounted = false;
     };
-  }, [isPublicRoute]);
+  }, [isPublicRoute, hideHeader]);
 
   const activeCommunity = useMemo(() => {
     const cur = pathname.toLowerCase();
@@ -115,83 +129,78 @@ export default function AppHeader({
   const initials = (txt?: string | null) =>
     (txt?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "U").toUpperCase();
 
-  const handleCommunityClick = (c: CommunityRow) => {
-    const p = c.Path?.startsWith("/") ? c.Path : `/${c.Path ?? ""}`;
-    if (p) router.push(p);
+  const handleCommunityClick = (community: CommunityRow) => {
+    const path = community.Path?.startsWith("/") ? community.Path : `/${community.Path ?? ""}`;
+    if (path) router.push(path);
   };
 
+  if (hideHeader) return null;
+
   if (isPublicRoute) {
-    return (
-      <PublicHeader
-        logoSrc={logoSrc}
-        logoAlt={logoAlt}
-        pathname={pathname}
-      />
-    );
+    return <PublicHeader logoSrc={effectiveLogoSrc} logoAlt={logoAlt} pathname={pathname} />;
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+    <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/82">
+      <div className="mx-auto flex h-24 max-w-7xl items-center gap-3 px-4 sm:px-6">
         <div className="flex items-center sm:hidden">
           <MobileNav
             logoSrc={effectiveLogoSrc}
-            logoAlt={effectiveLogoAlt}
+            logoAlt={logoAlt}
             communities={communities}
             onSelect={handleCommunityClick}
             user={effectiveUser}
           />
         </div>
 
-        <Link href="/post-login" className="flex items-center gap-2">
+        <Link href="/post-login" className="flex items-center">
           <Image
             src={effectiveLogoSrc}
-            alt={effectiveLogoAlt}
-            width={36}
-            height={36}
-            className="h-9 w-9 rounded-full object-contain"
+            alt={logoAlt}
+            width={260}
+            height={72}
+            priority
+            className="h-auto w-[170px] object-contain sm:w-[210px] lg:w-[235px]"
           />
-          <span className="hidden text-lg font-semibold tracking-tight sm:inline">
-            {effectiveLogoAlt}
-          </span>
         </Link>
 
         {communities.length > 0 && (
           <div className="ml-2 hidden sm:block">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 rounded-xl">
+                <Button variant="outline" className="flex items-center gap-2 rounded-full px-4">
                   <Home className="h-4 w-4" />
                   <span className="max-w-[240px] truncate">
-                    {activeCommunity ? activeCommunity.Title : "Selecciona tu Comunidad"}
+                    {activeCommunity ? activeCommunity.Title : "Selecciona tu comunidad"}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
+
+              <DropdownMenuContent align="start" className="w-72">
                 <DropdownMenuLabel>Comunidades</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {communities.map((c) => (
+                {communities.map((community) => (
                   <DropdownMenuItem
-                    key={c.Path}
-                    onClick={() => handleCommunityClick(c)}
+                    key={community.Path}
+                    onClick={() => handleCommunityClick(community)}
                     className="flex items-center gap-2"
                   >
-                    {c.LogoUrl ? (
+                    {community.LogoUrl ? (
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={c.LogoUrl} alt={c.Title} />
-                        <AvatarFallback>{initials(c.Title)}</AvatarFallback>
+                        <AvatarImage src={community.LogoUrl} alt={community.Title} />
+                        <AvatarFallback>{initials(community.Title)}</AvatarFallback>
                       </Avatar>
                     ) : (
                       <Avatar className="h-6 w-6">
-                        <AvatarFallback>{initials(c.Title)}</AvatarFallback>
+                        <AvatarFallback>{initials(community.Title)}</AvatarFallback>
                       </Avatar>
                     )}
 
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{c.Title}</div>
+                      <div className="truncate font-medium">{community.Title}</div>
                       <div className="truncate text-xs text-muted-foreground">
-                        {c.Path}
+                        {community.Path}
                       </div>
                     </div>
                   </DropdownMenuItem>
@@ -206,19 +215,19 @@ export default function AppHeader({
         <div className="hidden items-center gap-2 sm:flex">
           {showSearch && (
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
-              <Input placeholder="Buscar…" className="w-56 pl-8" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
+              <Input placeholder="Buscar..." className="w-56 rounded-full pl-9" />
             </div>
           )}
 
-          <Button variant="ghost" size="icon" aria-label="Notificaciones">
+          <Button variant="ghost" size="icon" aria-label="Notificaciones" className="rounded-full">
             <Bell className="h-5 w-5" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <Avatar className="h-7 w-7">
+              <Button variant="ghost" className="flex items-center gap-2 rounded-full px-2">
+                <Avatar className="h-8 w-8">
                   {effectiveUser?.image && (
                     <AvatarImage
                       src={effectiveUser.image}
@@ -229,9 +238,11 @@ export default function AppHeader({
                     {initials(effectiveUser?.name || effectiveUser?.email)}
                   </AvatarFallback>
                 </Avatar>
+
                 <span className="max-w-[160px] truncate text-sm">
                   {effectiveUser?.name || effectiveUser?.email || "Usuario"}
                 </span>
+
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -242,15 +253,13 @@ export default function AppHeader({
               <DropdownMenuItem asChild>
                 <Link href="/post-login">Panel principal</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/perfil">Perfil</Link>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 className="text-red-600 focus:text-red-600"
               >
-                <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -269,62 +278,75 @@ function PublicHeader({
   logoAlt: string;
   pathname: string;
 }) {
-  const isSecurity = pathname === "/politica-de-seguridad";
   const isHome = pathname === "/";
+  const isSecurity = pathname === "/politica-de-seguridad";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-black/5 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="mx-auto flex h-28 max-w-7xl items-center px-6">
-        <Link href="/" className="flex shrink-0 items-center gap-3">
+    <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-white/96 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+      <div className="mx-auto flex h-28 max-w-7xl items-center gap-4 px-4 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center">
           <Image
             src={logoSrc}
             alt={logoAlt}
-            width={40}
-            height={40}
-            className="h-10 w-10 object-contain"
+            width={300}
+            height={84}
+            priority
+            className="h-auto w-[190px] object-contain sm:w-[230px] lg:w-[270px]"
           />
-          <span className="text-[2rem] font-semibold tracking-tight text-[#111827]">
-            {logoAlt}
-          </span>
         </Link>
 
         <div className="hidden flex-1 justify-center lg:flex">
-          <nav className="inline-flex items-center gap-3 rounded-[24px] border border-black/10 bg-white px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-            <Link
-              href="/"
-              className={`rounded-full px-6 py-3 text-lg font-medium transition ${
-                isHome
-                  ? "bg-[#22d3c5] text-[#111827]"
-                  : "text-[#6b7280] hover:bg-[#f5f5f5] hover:text-[#111827]"
-              }`}
-            >
-              Inicio
-            </Link>
+          <nav className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-2 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.06)]">
+  <Link
+    href="/"
+    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+    style={
+      pathname === "/"
+        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+        : { color: "#4b5563" }
+    }
+  >
+    Inicio
+  </Link>
 
-            <Link
-              href="/#comunidades"
-              className="rounded-full px-6 py-3 text-lg font-medium text-[#6b7280] transition hover:bg-[#f5f5f5] hover:text-[#111827]"
-            >
-              Comunidades
-            </Link>
+  <Link
+    href="/#comunidades"
+    className="rounded-full px-6 py-3 text-[16px] font-medium text-[#4b5563] transition hover:bg-[#f7f7f7] hover:text-[#111827]"
+  >
+    Comunidades
+  </Link>
 
-            <Link
-              href="/politica-de-seguridad"
-              className={`rounded-full px-6 py-3 text-lg font-medium transition ${
-                isSecurity
-                  ? "bg-[#f3f4f6] text-[#111827]"
-                  : "text-[#6b7280] hover:bg-[#f5f5f5] hover:text-[#111827]"
-              }`}
-            >
-              Política de seguridad
-            </Link>
-          </nav>
+  <Link
+    href="/Oficina-movil"
+    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+    style={
+      pathname === "/Oficina-movil"
+        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+        : { color: "#4b5563" }
+    }
+  >
+    Oficina Móvil
+  </Link>
+
+  <Link
+    href="/politica-de-seguridad"
+    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+    style={
+      pathname === "/politica-de-seguridad"
+        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+        : { color: "#4b5563" }
+    }
+  >
+    Política de seguridad
+  </Link>
+</nav>
         </div>
 
         <div className="ml-auto hidden lg:flex">
           <Link
             href="/login"
-            className="rounded-full bg-[#0f172a] px-8 py-4 text-lg font-semibold text-white transition hover:bg-black"
+            className="rounded-full px-7 py-3 text-[16px] font-semibold text-white transition hover:opacity-92"
+            style={{ backgroundColor: BRAND_DARK }}
           >
             Ingresar
           </Link>
@@ -348,34 +370,34 @@ function PublicMobileNav({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" aria-label="Abrir menú" className="rounded-full">
           <MenuIcon className="h-6 w-6" />
         </Button>
       </SheetTrigger>
 
       <SheetContent side="right" className="w-80 p-0">
         <SheetHeader className="px-4 pb-2 pt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <Image
               src={logoSrc}
               alt={logoAlt}
-              width={32}
-              height={32}
-              className="h-8 w-8 object-contain"
+              width={180}
+              height={48}
+              className="h-auto w-[150px] object-contain"
             />
-            <SheetTitle className="text-base">{logoAlt}</SheetTitle>
           </div>
+          <SheetTitle className="sr-only">Menú</SheetTitle>
         </SheetHeader>
 
         <nav className="space-y-3 px-4 pb-6 pt-4">
           {PUBLIC_NAV_ITEMS.map((item) => (
-            <Button key={item.href} asChild variant="ghost" className="w-full justify-start">
+            <Button key={item.href} asChild variant="ghost" className="w-full justify-start rounded-full">
               <Link href={item.href}>{item.label}</Link>
             </Button>
           ))}
 
           <div className="pt-2">
-            <Button asChild className="w-full">
+            <Button asChild className="w-full rounded-full" style={{ backgroundColor: BRAND_DARK }}>
               <Link href="/login">Ingresar</Link>
             </Button>
           </div>
@@ -395,7 +417,7 @@ function MobileNav({
   logoSrc: string;
   logoAlt: string;
   communities: CommunityRow[];
-  onSelect: (c: CommunityRow) => void;
+  onSelect: (community: CommunityRow) => void;
   user?: AppUser | null;
 }) {
   const initials = (txt?: string | null) =>
@@ -404,23 +426,23 @@ function MobileNav({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="-ml-2">
+        <Button variant="ghost" size="icon" className="-ml-2 rounded-full" aria-label="Abrir menú">
           <MenuIcon className="h-6 w-6" />
         </Button>
       </SheetTrigger>
 
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="px-4 pb-2 pt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <Image
               src={logoSrc}
               alt={logoAlt}
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-full object-contain"
+              width={180}
+              height={48}
+              className="h-auto w-[150px] object-contain"
             />
-            <SheetTitle className="text-base">{logoAlt}</SheetTitle>
           </div>
+          <SheetTitle className="sr-only">Menú</SheetTitle>
         </SheetHeader>
 
         <nav className="space-y-6 px-4 pb-6">
@@ -428,9 +450,10 @@ function MobileNav({
             <h4 className="px-1 text-xs font-semibold uppercase text-muted-foreground">
               Navegación
             </h4>
-            <Button asChild variant="ghost" className="w-full justify-start">
+            <Button asChild variant="ghost" className="w-full justify-start rounded-full">
               <Link href="/post-login">
-                <Home className="mr-2 h-4 w-4" /> Inicio
+                <Home className="mr-2 h-4 w-4" />
+                Inicio
               </Link>
             </Button>
           </div>
@@ -440,18 +463,19 @@ function MobileNav({
               <h4 className="px-1 text-xs font-semibold uppercase text-muted-foreground">
                 Comunidades
               </h4>
+
               <div className="max-h-56 space-y-1 overflow-auto pr-1">
-                {communities.map((c) => (
+                {communities.map((community) => (
                   <Button
-                    key={c.Path}
+                    key={community.Path}
                     variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => onSelect(c)}
+                    className="w-full justify-start rounded-full"
+                    onClick={() => onSelect(community)}
                   >
                     <Avatar className="mr-2 h-6 w-6">
-                      <AvatarFallback>{initials(c.Title)}</AvatarFallback>
+                      <AvatarFallback>{initials(community.Title)}</AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{c.Title}</span>
+                    <span className="truncate">{community.Title}</span>
                   </Button>
                 ))}
               </div>
@@ -462,11 +486,13 @@ function MobileNav({
             <h4 className="px-1 text-xs font-semibold uppercase text-muted-foreground">
               Cuenta
             </h4>
-            <div className="flex items-center gap-3 rounded-xl border p-3">
+
+            <div className="flex items-center gap-3 rounded-2xl border p-3">
               <Avatar className="h-9 w-9">
                 {user?.image && <AvatarImage src={user.image} alt={user?.name ?? "Usuario"} />}
                 <AvatarFallback>{initials(user?.name || user?.email)}</AvatarFallback>
               </Avatar>
+
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">
                   {user?.name || "Usuario"}
@@ -477,21 +503,17 @@ function MobileNav({
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button className="flex-1" asChild>
-                <Link href="/post-login">Panel</Link>
-              </Button>
-              <Button variant="outline" className="flex-1" asChild>
-                <Link href="/perfil">Perfil</Link>
-              </Button>
-            </div>
+            <Button className="w-full rounded-full" asChild>
+              <Link href="/post-login">Panel principal</Link>
+            </Button>
 
             <Button
               variant="destructive"
-              className="w-full"
+              className="w-full rounded-full"
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
-              <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
+              <LogOut className="mr-2 h-4 w-4" />
+              Cerrar sesión
             </Button>
           </div>
         </nav>
