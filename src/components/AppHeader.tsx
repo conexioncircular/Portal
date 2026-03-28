@@ -60,7 +60,7 @@ const HIDE_HEADER_ROUTES = ["/login"];
 
 const PUBLIC_NAV_ITEMS = [
   { label: "Inicio", href: "/" },
-  { label: "Comunidades", href: "/#comunidades" },
+  { label: "Comunidades", href: "/comunidades" },
   { label: "Oficina Móvil", href: "/Oficina-movil" },
   { label: "Política de seguridad", href: "/politica-de-seguridad" },
 ];
