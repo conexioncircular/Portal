@@ -310,7 +310,7 @@ function PublicHeader({
   </Link>
 
   <Link
-    href="/#comunidades"
+    href="/comunidades"
     className="rounded-full px-6 py-3 text-[16px] font-medium text-[#4b5563] transition hover:bg-[#f7f7f7] hover:text-[#111827]"
   >
     Comunidades
