@@ -54,7 +54,7 @@ interface AppHeaderProps {
 const BRAND_DARK = "#1E1A1D";
 const BRAND_BLUE_SOFT = "#EAF8FD";
 
-const PUBLIC_ROUTES = ["/", "/politica-de-seguridad","/Oficina-movil"];
+const PUBLIC_ROUTES = ["/", "/comunidades", "/politica-de-seguridad", "/Oficina-movil"];
 
 const HIDE_HEADER_ROUTES = ["/login"];
 
@@ -310,11 +310,16 @@ function PublicHeader({
   </Link>
 
   <Link
-    href="/comunidades"
-    className="rounded-full px-6 py-3 text-[16px] font-medium text-[#4b5563] transition hover:bg-[#f7f7f7] hover:text-[#111827]"
-  >
-    Comunidades
-  </Link>
+  href="/comunidades"
+  className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+  style={
+    pathname === "/comunidades"
+      ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+      : { color: "#4b5563" }
+  }
+>
+  Comunidades
+</Link>
 
   <Link
     href="/Oficina-movil"
