@@ -1,41 +1,33 @@
 "use client";
 
-type Props = { phone: string; preset?: string; communityName?: string };
+type WhatsAppFloatingProps = {
+  phone: string;
+  communityName?: string;
+  preset?: string;
+};
 
-// Fallback genérico (sin comunidad específica)
-const DEFAULT_WA_TEXT_ENCODED = encodeURIComponent(
-  "Hola! Quiero reportar un problema."
-);
+export default function WhatsAppFloating({
+  phone,
+  communityName,
+  preset,
+}: WhatsAppFloatingProps) {
+  const cleanPhone = String(phone ?? "").replace(/[^\d]/g, "");
 
-export default function WhatsAppFloating({ phone, preset, communityName }: Props) {
-  const text = preset
-    ? encodeURIComponent(preset)
-    : communityName && communityName.trim().length > 0
-    ? encodeURIComponent(`Hola! Quiero reportar un problema en ${communityName}.`)
-    : DEFAULT_WA_TEXT_ENCODED;
-  const wa = `https://wa.me/${phone.replace(/\D/g, "")}?text=${text}`;
+  const message =
+    preset?.trim() ||
+    (communityName
+      ? `Hola, quiero comunicarme sobre ${communityName}.`
+      : "Hola, quiero comunicarme con Conexión.");
 
-  const s: React.CSSProperties = {
-    position: "fixed",
-    right: 20,
-    bottom: 20,
-    background: "#25D366",
-    color: "#fff",
-    borderRadius: 9999,
-    padding: "14px 16px",
-    textDecoration: "none",
-    boxShadow: "0 6px 16px rgba(0,0,0,.15)",
-    fontWeight: 600,
-    zIndex: 50,
-  };
+  const href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
   return (
     <a
-      href={wa}
+      href={href}
       target="_blank"
-      rel="noopener noreferrer"
-      style={s}
-      aria-label="Habla con el bot por WhatsApp"
+      rel="noreferrer noopener"
+      aria-label="Contactar por WhatsApp"
+      className="fixed bottom-6 right-6 z-40 inline-flex items-center rounded-full bg-[#25D366] px-5 py-3 text-base font-semibold text-white shadow-[0_12px_24px_rgba(37,211,102,0.22)] transition hover:scale-[1.01] hover:bg-[#20c35b]"
     >
       WhatsApp
     </a>

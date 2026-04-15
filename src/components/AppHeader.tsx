@@ -55,7 +55,6 @@ const BRAND_DARK = "#1E1A1D";
 const BRAND_BLUE_SOFT = "#EAF8FD";
 
 const PUBLIC_ROUTES = ["/", "/comunidades", "/politica-de-seguridad", "/Oficina-movil"];
-
 const HIDE_HEADER_ROUTES = ["/login"];
 
 const PUBLIC_NAV_ITEMS = [
@@ -82,8 +81,8 @@ export default function AppHeader({
   const router = useRouter();
 
   const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
- const isPublicRoute =
-  PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
+  const isPublicRoute =
+    PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
 
   const effectiveLogoSrc = logoSrc ?? (isPublicRoute ? PUBLIC_LOGO : PRIVATE_LOGO);
 
@@ -122,9 +121,15 @@ export default function AppHeader({
   }, [isPublicRoute, hideHeader]);
 
   const activeCommunity = useMemo(() => {
-    const cur = pathname.toLowerCase();
-    return communities.find((c) => (c.Path || "").toLowerCase() === cur) ?? null;
-  }, [communities, pathname]);
+  const cur = pathname.toLowerCase();
+
+  return (
+    communities.find((c) => {
+      const path = (c.Path || "").toLowerCase();
+      return path && (cur === path || cur.startsWith(`${path}/`));
+    }) ?? null
+  );
+}, [communities, pathname]);
 
   const initials = (txt?: string | null) =>
     (txt?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "U").toUpperCase();
@@ -141,8 +146,8 @@ export default function AppHeader({
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-white/92 backdrop-blur supports-[backdrop-filter]:bg-white/82">
-      <div className="mx-auto flex h-24 max-w-7xl items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+      <div className="mx-auto flex h-24 max-w-[1400px] items-center gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center sm:hidden">
           <MobileNav
             logoSrc={effectiveLogoSrc}
@@ -153,38 +158,44 @@ export default function AppHeader({
           />
         </div>
 
-        <Link href="/post-login" className="flex items-center">
+        <Link href="/post-login" className="flex shrink-0 items-center">
           <Image
             src={effectiveLogoSrc}
             alt={logoAlt}
             width={260}
             height={72}
             priority
-            className="h-auto w-[170px] object-contain sm:w-[210px] lg:w-[235px]"
+            className="h-auto w-[180px] object-contain sm:w-[220px] lg:w-[240px]"
           />
         </Link>
 
         {communities.length > 0 && (
-          <div className="ml-2 hidden sm:block">
+          <div className="ml-3 hidden sm:block">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 rounded-full px-4">
-                  <Home className="h-4 w-4" />
-                  <span className="max-w-[240px] truncate">
+                <Button
+                  variant="outline"
+                  className="flex h-12 items-center gap-3 rounded-full border border-gray-200 bg-white px-5 text-base font-medium text-gray-800 shadow-sm transition hover:bg-gray-50"
+                >
+                  <Home className="h-4 w-4 text-gray-600" />
+                  <span className="max-w-[220px] truncate">
                     {activeCommunity ? activeCommunity.Title : "Selecciona tu comunidad"}
                   </span>
-                  <ChevronDown className="h-4 w-4 opacity-70" />
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuContent
+                align="start"
+                className="w-80 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg"
+              >
                 <DropdownMenuLabel>Comunidades</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {communities.map((community) => (
                   <DropdownMenuItem
                     key={community.Path}
                     onClick={() => handleCommunityClick(community)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2"
                   >
                     {community.LogoUrl ? (
                       <Avatar className="h-6 w-6">
@@ -212,7 +223,7 @@ export default function AppHeader({
 
         <div className="flex-1" />
 
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className="hidden items-center gap-3 sm:flex">
           {showSearch && (
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
@@ -220,34 +231,42 @@ export default function AppHeader({
             </div>
           )}
 
-          <Button variant="ghost" size="icon" aria-label="Notificaciones" className="rounded-full">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Notificaciones"
+            className="h-10 w-10 rounded-full text-gray-700 hover:bg-gray-100"
+          >
             <Bell className="h-5 w-5" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 rounded-full px-2">
-                <Avatar className="h-8 w-8">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-3 rounded-full px-2 py-1 text-gray-800 hover:bg-transparent"
+              >
+                <Avatar className="h-10 w-10">
                   {effectiveUser?.image && (
                     <AvatarImage
                       src={effectiveUser.image}
                       alt={effectiveUser?.name ?? "Usuario"}
                     />
                   )}
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-gray-100 text-sm font-semibold text-gray-700">
                     {initials(effectiveUser?.name || effectiveUser?.email)}
                   </AvatarFallback>
                 </Avatar>
 
-                <span className="max-w-[160px] truncate text-sm">
+                <span className="max-w-[160px] truncate text-base font-medium">
                   {effectiveUser?.name || effectiveUser?.email || "Usuario"}
                 </span>
 
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 text-gray-500" />
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl border border-gray-200 bg-white shadow-lg">
               <DropdownMenuLabel>Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -278,9 +297,6 @@ function PublicHeader({
   logoAlt: string;
   pathname: string;
 }) {
-  const isHome = pathname === "/";
-  const isSecurity = pathname === "/politica-de-seguridad";
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-white/96 backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="mx-auto flex h-28 max-w-7xl items-center gap-4 px-4 sm:px-6">
@@ -297,54 +313,54 @@ function PublicHeader({
 
         <div className="hidden flex-1 justify-center lg:flex">
           <nav className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-2 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.06)]">
-  <Link
-    href="/"
-    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
-    style={
-      pathname === "/"
-        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
-        : { color: "#4b5563" }
-    }
-  >
-    Inicio
-  </Link>
+            <Link
+              href="/"
+              className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+              style={
+                pathname === "/"
+                  ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+                  : { color: "#4b5563" }
+              }
+            >
+              Inicio
+            </Link>
 
-  <Link
-  href="/comunidades"
-  className="rounded-full px-6 py-3 text-[16px] font-medium transition"
-  style={
-    pathname === "/comunidades"
-      ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
-      : { color: "#4b5563" }
-  }
->
-  Comunidades
-</Link>
+            <Link
+              href="/comunidades"
+              className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+              style={
+                pathname === "/comunidades"
+                  ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+                  : { color: "#4b5563" }
+              }
+            >
+              Comunidades
+            </Link>
 
-  <Link
-    href="/Oficina-movil"
-    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
-    style={
-      pathname === "/Oficina-movil"
-        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
-        : { color: "#4b5563" }
-    }
-  >
-    Oficina Móvil
-  </Link>
+            <Link
+              href="/Oficina-movil"
+              className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+              style={
+                pathname === "/Oficina-movil"
+                  ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+                  : { color: "#4b5563" }
+              }
+            >
+              Oficina Móvil
+            </Link>
 
-  <Link
-    href="/politica-de-seguridad"
-    className="rounded-full px-6 py-3 text-[16px] font-medium transition"
-    style={
-      pathname === "/politica-de-seguridad"
-        ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
-        : { color: "#4b5563" }
-    }
-  >
-    Política de seguridad
-  </Link>
-</nav>
+            <Link
+              href="/politica-de-seguridad"
+              className="rounded-full px-6 py-3 text-[16px] font-medium transition"
+              style={
+                pathname === "/politica-de-seguridad"
+                  ? { backgroundColor: BRAND_BLUE_SOFT, color: BRAND_DARK }
+                  : { color: "#4b5563" }
+              }
+            >
+              Política de seguridad
+            </Link>
+          </nav>
         </div>
 
         <div className="ml-auto hidden lg:flex">

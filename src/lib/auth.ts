@@ -1,7 +1,5 @@
-// src/lib/auth.ts — NextAuth v4 con allowedPaths / primaryPath y DisplayName
 import { getServerSession, type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import * as sql from "mssql";
 import * as argon2 from "argon2";
 import { getPool } from "./db";
 
@@ -14,20 +12,18 @@ type UserRow = {
   isActive: boolean;
 };
 
-// 🔹 Normalizador de paths
 function normPath(p?: string | null): string {
   const s = String(p ?? "").trim().toLowerCase();
   return s !== "/" && s.endsWith("/") ? s.slice(0, -1) : s;
 }
 
-// 🔹 Paths permitidos y principal
 async function getUserAccessPaths(
   userId: string
 ): Promise<{ paths: string[]; primary: string | null }> {
   const pool = await getPool();
   const q = await pool
     .request()
-    .input("UserId", sql.UniqueIdentifier, userId)
+    .input("UserId", String(userId))
     .query(/* sql */ `
       SELECT p.Path, upa.IsPrimary
       FROM cms.UserPageAccess upa
@@ -37,22 +33,26 @@ async function getUserAccessPaths(
 
   const rows = q.recordset as Array<{ Path: string; IsPrimary?: boolean }>;
   const set = new Set<string>();
+
   for (const r of rows) {
     const p = normPath(r.Path);
     if (p) set.add(p);
   }
+
   const primaryRow = rows.find((r) => !!r.IsPrimary) ?? rows[0];
   const primary = primaryRow?.Path ? normPath(primaryRow.Path) : null;
 
   return { paths: Array.from(set), primary };
 }
 
-// 🔹 Verifica usuario y contraseña
 async function verifyUser(email: string, password: string): Promise<UserRow | null> {
   const pool = await getPool();
+
+  const safeEmail = String(email ?? "").trim().toLowerCase();
+
   const res = await pool
     .request()
-    .input("email", sql.NVarChar(256), email)
+    .input("email", safeEmail)
     .query(/* sql */ `
       SELECT TOP 1
         UserId        AS id,
@@ -62,7 +62,7 @@ async function verifyUser(email: string, password: string): Promise<UserRow | nu
         PasswordAlgo  AS passwordAlgo,
         IsActive      AS isActive
       FROM auth.Users
-      WHERE Email = @email
+      WHERE LOWER(Email) = LOWER(@email)
     `);
 
   const user = res.recordset?.[0] as UserRow | undefined;
@@ -72,7 +72,6 @@ async function verifyUser(email: string, password: string): Promise<UserRow | nu
   return ok ? user : null;
 }
 
-// 🔹 Configuración NextAuth
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
@@ -103,7 +102,6 @@ export const authOptions: NextAuthOptions = {
         const user = await verifyUser(email, password);
         if (!user) throw new Error("Credenciales inválidas");
 
-        // 🔹 Incluimos displayName como name
         return {
           id: user.id,
           email: user.email,
@@ -143,6 +141,7 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name ?? session.user.name ?? null;
         session.user.email = (token.email as string) ?? session.user.email ?? null;
       }
+
       (session as any).allowedPaths = (token as any).allowedPaths ?? [];
       (session as any).primaryPath = (token as any).primaryPath ?? null;
       return session;
@@ -155,7 +154,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-// 🔹 Helper para server components
 export async function auth() {
   return getServerSession(authOptions);
 }

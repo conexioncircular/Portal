@@ -1,13 +1,10 @@
-// app/(public)/comunidades/[slug]/page.tsx
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { getCommunityBySlug } from "@/lib/data";
 import WhatsAppFloating from "@/components/WhatsAppFloating";
-import CommunitySwitcher from "@/components/CommunitySwitcher";
 import NewsGrid from "@/components/news/NewsGrid";
 
 type ParamsShape = { slug: string };
@@ -21,11 +18,9 @@ function getBaseUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_BASE_URL?.trim();
   if (fromEnv) return fromEnv;
 
-  // Vercel (ej. my-app.vercel.app)
   const vercel = process.env.VERCEL_URL?.trim();
   if (vercel) return `https://${vercel}`;
 
-  // Fallback local
   return "http://localhost:3000";
 }
 
@@ -41,34 +36,34 @@ async function fetchNews(slug: string) {
 
 export default async function ComunidadPage({ params }: Props) {
   const { slug } = (await params) as ParamsShape;
-  const comunidad = await getCommunityBySlug(normSlug(slug));
+  const normalizedSlug = normSlug(slug);
+
+  const comunidad = await getCommunityBySlug(normalizedSlug);
   if (!comunidad || !comunidad.isActive) return notFound();
 
-  const { items: newsItems } = await fetchNews(normSlug(slug));
+  const { items: newsItems } = await fetchNews(normalizedSlug);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-10 relative">
-      <CommunitySwitcher />
+  <main className="min-h-screen bg-[#f7f7f5] px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto w-full max-w-6xl">
+      <section className="rounded-[2rem] bg-white px-6 py-8 shadow-sm ring-1 ring-black/5 md:px-10 md:py-10">
+        <div className="max-w-2xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+            {comunidad.name}
+          </h1>
+          <p className="mt-2 text-base text-slate-500">
+            Novedades, actividades e información relevante para la comunidad.
+          </p>
+        </div>
 
-      <div className="mx-auto w-full max-w-4xl space-y-6">
-        <header>
-          <h1 className="text-3xl font-bold text-gray-900">{comunidad.name}</h1>
-          <p className="text-gray-500">{comunidad.slug}</p>
-        </header>
+        <div className="mt-8 space-y-4">
+          <h2 className="text-2xl font-semibold text-slate-900">Noticias</h2>
+          <NewsGrid items={newsItems} communitySlug={normalizedSlug} />
+        </div>
+      </section>
+    </div>
 
-        
-
-        {/* Noticias */}
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Noticias</h2>
-          <NewsGrid items={newsItems} />
-        </section>
-      </div>
-
-      <WhatsAppFloating
-        phone="15793660415"
-        preset={`Hola! Quiero reportar un problema en ${comunidad.name}.`}
-      />
-    </main>
-  );
+    
+  </main>
+);
 }

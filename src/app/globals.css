@@ -195,4 +195,150 @@ body {
   body {
     @apply bg-background text-foreground;
  }
+
+ .news-content p {
+  margin: 0 0 1.25rem 0;
+}
+
+.news-content h1,
+.news-content h2,
+.news-content h3 {
+  margin: 2rem 0 1rem 0;
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.news-content h1 {
+  font-size: 2rem;
+}
+
+.news-content h2 {
+  font-size: 1.5rem;
+}
+
+.news-content h3 {
+  font-size: 1.25rem;
+}
+
+.news-content ul,
+.news-content ol {
+  margin: 0 0 1.25rem 1.5rem;
+  padding: 0;
+}
+
+.news-content li {
+  margin-bottom: 0.5rem;
+}
+
+.news-content a {
+  color: #047857;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.news-content strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.news-content img {
+  margin: 1.5rem 0;
+  border-radius: 1rem;
+}
+
+.news-content blockquote {
+  margin: 1.5rem 0;
+  border-left: 4px solid #d1d5db;
+  padding-left: 1rem;
+  color: #4b5563;
+}
+
+.news-content p {
+  margin: 0 0 1.25rem 0;
+}
+
+.news-content h1,
+.news-content h2,
+.news-content h3 {
+  margin: 2rem 0 1rem 0;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.news-content ul,
+.news-content ol {
+  margin: 0 0 1.25rem 1.5rem;
+}
+
+.news-content li {
+  margin-bottom: 0.5rem;
+}
+
+.news-content a {
+  color: #047857;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.news-content p {
+  margin: 0 0 1.25rem 0;
+}
+
+.news-content h1,
+.news-content h2,
+.news-content h3 {
+  margin: 2rem 0 1rem 0;
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.news-content h1 {
+  font-size: 2rem;
+}
+
+.news-content h2 {
+  font-size: 1.5rem;
+}
+
+.news-content h3 {
+  font-size: 1.25rem;
+}
+
+.news-content ul,
+.news-content ol {
+  margin: 0 0 1.25rem 1.5rem;
+  padding: 0;
+}
+
+.news-content li {
+  margin-bottom: 0.5rem;
+}
+
+.news-content a {
+  color: #047857;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.news-content strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.news-content img {
+  margin: 1.5rem 0;
+  border-radius: 1rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.news-content blockquote {
+  margin: 1.5rem 0;
+  border-left: 4px solid #d1d5db;
+  padding-left: 1rem;
+  color: #4b5563;
+}
 }
