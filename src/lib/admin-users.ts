@@ -104,7 +104,7 @@ async function getUserById(userId: string): Promise<{ userId: string; email: str
   const pool = await getPool();
   const result = await pool
     .request()
-    .input("userId", sql.UniqueIdentifier, userId)
+    .input("userId", userId)
     .query(/* sql */ `
       SELECT TOP 1
         u.UserId AS userId,
@@ -132,7 +132,7 @@ async function setAdminFlagInTransaction(
 ): Promise<void> {
   if (isAdmin) {
     await new sql.Request(transaction)
-      .input("userId", sql.UniqueIdentifier, userId)
+      .input("userId", userId)
       .input("email", sql.NVarChar(256), normalizeEmail(email))
       .query(/* sql */ `
         MERGE auth.AdminUsers AS target
@@ -148,7 +148,7 @@ async function setAdminFlagInTransaction(
   }
 
   await new sql.Request(transaction)
-    .input("userId", sql.UniqueIdentifier, userId)
+    .input("userId", userId)
     .query("DELETE FROM auth.AdminUsers WHERE UserId = @userId");
 }
 
@@ -159,7 +159,7 @@ async function replaceUserAccessInTransaction(
   primaryPageId?: string | null
 ): Promise<void> {
   await new sql.Request(transaction)
-    .input("userId", sql.UniqueIdentifier, userId)
+    .input("userId", userId)
     .query("DELETE FROM cms.UserPageAccess WHERE UserId = @userId");
 
   if (pageIds.length === 0) {
@@ -172,8 +172,8 @@ async function replaceUserAccessInTransaction(
 
   for (const pageId of pageIds) {
     await new sql.Request(transaction)
-      .input("userId", sql.UniqueIdentifier, userId)
-      .input("pageId", sql.UniqueIdentifier, pageId)
+      .input("userId", userId)
+      .input("pageId", pageId)
       .input("accessLevel", sql.TinyInt, 1)
       .input("isPrimary", sql.Bit, pageId === effectivePrimaryPageId)
       .query(/* sql */ `
