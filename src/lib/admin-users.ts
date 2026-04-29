@@ -174,7 +174,7 @@ async function replaceUserAccessInTransaction(
     await new sql.Request(transaction)
       .input("userId", sql.UniqueIdentifier, userId)
       .input("pageId", sql.UniqueIdentifier, pageId)
-      .input("accessLevel", sql.NVarChar(50), "read")
+      .input("accessLevel", sql.TinyInt, 1)
       .input("isPrimary", sql.Bit, pageId === effectivePrimaryPageId)
       .query(/* sql */ `
         INSERT INTO cms.UserPageAccess (UserId, PageId, AccessLevel, IsPrimary)
