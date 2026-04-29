@@ -120,22 +120,17 @@ export const authOptions: NextAuthOptions = {
 
       const uid = String(token.uid ?? token.sub ?? "").trim();
       const email = String(token.email ?? "").trim().toLowerCase();
-      const needsAdminRefresh =
-        (!!uid || !!email) && (user || token.isAdmin === undefined || trigger === "update");
-
-      if (needsAdminRefresh) {
+      if (!!uid || !!email) {
         try {
           token.isAdmin = await isAdminPrincipal({ userId: uid, email });
         } catch {
           token.isAdmin = false;
         }
+      } else {
+        token.isAdmin = false;
       }
 
-      const needsAccessRefresh =
-        !!uid &&
-        (user || !token.allowedPaths || trigger === "update");
-
-      if (needsAccessRefresh) {
+      if (uid) {
         try {
           const { paths, primary } = token.isAdmin
             ? await getAdminAccessPaths()
@@ -147,6 +142,9 @@ export const authOptions: NextAuthOptions = {
           token.allowedPaths = token.allowedPaths ?? [];
           token.primaryPath = token.primaryPath ?? undefined;
         }
+      } else {
+        token.allowedPaths = [];
+        token.primaryPath = undefined;
       }
 
       return token;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -40,9 +40,18 @@ type CommunityRow = {
 };
 
 export type AppUser = {
+  id?: string | null;
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  isAdmin?: boolean;
+  roles?: string[];
+};
+
+type SessionSnapshot = {
+  isAdmin?: boolean;
+  roles?: string[];
+  user?: AppUser | null;
 };
 
 interface AppHeaderProps {
@@ -74,19 +83,83 @@ export default function AppHeader({
   user,
   showSearch = false,
 }: AppHeaderProps) {
-  const { data: session } = useSession();
-  const effectiveUser: AppUser | null = user ?? (session?.user as AppUser) ?? null;
-  const isAdmin = !!session?.isAdmin;
+  const { data: session, update } = useSession();
+  const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot | null>(null);
+  const effectiveSession = sessionSnapshot ?? session ?? null;
+  const effectiveUser: AppUser | null = user ?? (effectiveSession?.user as AppUser) ?? null;
+  const isAdmin = Boolean(
+    effectiveSession?.isAdmin ||
+      effectiveSession?.user?.isAdmin ||
+      effectiveUser?.isAdmin ||
+      effectiveSession?.roles?.includes("admin") ||
+      effectiveSession?.user?.roles?.includes("admin") ||
+      effectiveUser?.roles?.includes("admin")
+  );
 
   const [communities, setCommunities] = useState<CommunityRow[]>([]);
   const pathname = usePathname() || "/";
   const router = useRouter();
+  const refreshedSessionRef = useRef<string | null>(null);
 
   const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
   const isPublicRoute =
     PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
 
   const effectiveLogoSrc = logoSrc ?? (isPublicRoute ? PUBLIC_LOGO : PRIVATE_LOGO);
+
+  useEffect(() => {
+    const sessionUserId = String(session?.user?.id ?? "").trim();
+    if (!sessionUserId || hideHeader) {
+      refreshedSessionRef.current = null;
+      return;
+    }
+
+    const refreshKey = `${sessionUserId}:${pathname}`;
+    if (refreshedSessionRef.current === refreshKey) {
+      return;
+    }
+
+    refreshedSessionRef.current = refreshKey;
+    void update();
+  }, [hideHeader, pathname, session?.user?.id, update]);
+
+  useEffect(() => {
+    if (hideHeader) {
+      setSessionSnapshot(null);
+      return;
+    }
+
+    let mounted = true;
+
+    (async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!response.ok) {
+          setSessionSnapshot(null);
+          return;
+        }
+
+        const data = (await response.json()) as SessionSnapshot;
+        setSessionSnapshot(data);
+      } catch {
+        if (mounted) {
+          setSessionSnapshot(null);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [hideHeader, pathname]);
 
   useEffect(() => {
     if (isPublicRoute || hideHeader) return;

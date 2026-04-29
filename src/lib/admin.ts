@@ -73,11 +73,11 @@ export async function isAdminPrincipal(principal: AdminPrincipal): Promise<boole
 
   let whereClause = "";
   if (userId) {
-    request.input("userId", sql.UniqueIdentifier, userId);
+    request.input("userId", userId);
     whereClause = "UserId = @userId";
   }
   if (email) {
-    request.input("email", sql.NVarChar(256), email);
+    request.input("email", email);
     whereClause = whereClause ? `${whereClause} OR LOWER(Email) = LOWER(@email)` : "LOWER(Email) = LOWER(@email)";
   }
 
@@ -135,8 +135,8 @@ export async function upsertAdminUser(userId: string, email: string): Promise<vo
   const pool = await getPool();
   await pool
     .request()
-    .input("userId", sql.UniqueIdentifier, userId)
-    .input("email", sql.NVarChar(256), normalizeEmail(email))
+    .input("userId", userId)
+    .input("email", normalizeEmail(email))
     .query(/* sql */ `
       MERGE auth.AdminUsers AS target
       USING (SELECT @userId AS UserId, @email AS Email) AS source
@@ -155,6 +155,6 @@ export async function removeAdminUser(userId: string): Promise<void> {
   const pool = await getPool();
   await pool
     .request()
-    .input("userId", sql.UniqueIdentifier, userId)
+    .input("userId", userId)
     .query("DELETE FROM auth.AdminUsers WHERE UserId = @userId");
 }
