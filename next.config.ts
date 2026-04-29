@@ -9,6 +9,7 @@ const imageHostnames = [
   "emmajeanstravels.com",
   "www.cascada.travel",
   "images.unsplash.com",
+  "www.elzorronortino.cl",
 ];
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
