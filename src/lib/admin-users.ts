@@ -52,6 +52,10 @@ function normalizeDisplayName(displayName?: string | null): string | null {
   return value || null;
 }
 
+function normalizeUserId(userId?: string | null): string {
+  return String(userId ?? "").trim().toLowerCase();
+}
+
 function uniqueIds(values?: string[]): string[] {
   return Array.from(
     new Set(
@@ -80,7 +84,7 @@ async function getUserByEmail(email: string): Promise<{ userId: string; email: s
   const pool = await getPool();
   const result = await pool
     .request()
-    .input("email", sql.NVarChar(256), normalizeEmail(email))
+    .input("email", normalizeEmail(email))
     .query(/* sql */ `
       SELECT TOP 1
         u.UserId AS userId,
@@ -133,7 +137,7 @@ async function setAdminFlagInTransaction(
   if (isAdmin) {
     await new sql.Request(transaction)
       .input("userId", userId)
-      .input("email", sql.NVarChar(256), normalizeEmail(email))
+      .input("email", normalizeEmail(email))
       .query(/* sql */ `
         MERGE auth.AdminUsers AS target
         USING (SELECT @userId AS UserId, @email AS Email) AS source
@@ -277,12 +281,12 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
   await transaction.begin();
   try {
     await new sql.Request(transaction)
-      .input("userId", sql.UniqueIdentifier, userId)
-      .input("email", sql.NVarChar(256), email)
-      .input("displayName", sql.NVarChar(256), displayName)
-      .input("passwordHash", sql.NVarChar(sql.MAX), passwordHash)
-      .input("passwordAlgo", sql.NVarChar(50), "argon2")
-      .input("isActive", sql.Bit, true)
+      .input("userId", userId)
+      .input("email", email)
+      .input("displayName", displayName)
+      .input("passwordHash", passwordHash)
+      .input("passwordAlgo", "argon2")
+      .input("isActive", true)
       .query(/* sql */ `
         INSERT INTO auth.Users (
           UserId,
@@ -320,7 +324,8 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
   }
 
   const users = await listManagedUsers();
-  const created = users.find((user) => user.userId === userId);
+  const normalizedUserId = normalizeUserId(userId);
+  const created = users.find((user) => normalizeUserId(user.userId) === normalizedUserId);
   if (!created) {
     throw new Error("No se pudo cargar el usuario recién creado");
   }
@@ -404,7 +409,8 @@ export async function replaceManagedUserAccess(
   }
 
   const users = await listManagedUsers();
-  const updated = users.find((user) => user.userId === userId);
+  const normalizedUserId = normalizeUserId(userId);
+  const updated = users.find((user) => normalizeUserId(user.userId) === normalizedUserId);
   if (!updated) {
     throw new Error("No se pudo cargar el usuario actualizado");
   }
@@ -442,7 +448,8 @@ export async function updateManagedUserProfile(
     `);
 
   const users = await listManagedUsers();
-  const updated = users.find((user) => user.userId === userId);
+  const normalizedUserId = normalizeUserId(userId);
+  const updated = users.find((user) => normalizeUserId(user.userId) === normalizedUserId);
   if (!updated) {
     throw new Error("No se pudo cargar el usuario actualizado");
   }
