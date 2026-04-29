@@ -142,10 +142,10 @@ export const authOptions: NextAuthOptions = {
             : await getUserAccessPaths(uid);
 
           token.allowedPaths = paths;
-          token.primaryPath = primary;
+          token.primaryPath = primary ?? undefined;
         } catch {
           token.allowedPaths = token.allowedPaths ?? [];
-          token.primaryPath = token.primaryPath ?? null;
+          token.primaryPath = token.primaryPath ?? undefined;
         }
       }
 
@@ -154,7 +154,7 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.uid ?? token.sub ?? null;
+        session.user.id = token.uid ?? token.sub ?? undefined;
         session.user.name = token.name ?? session.user.name ?? null;
         session.user.email = (token.email as string) ?? session.user.email ?? null;
         session.user.isAdmin = !!token.isAdmin;
@@ -162,7 +162,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       session.allowedPaths = token.allowedPaths ?? [];
-      session.primaryPath = token.primaryPath ?? null;
+      session.primaryPath = token.primaryPath ?? undefined;
       session.isAdmin = !!token.isAdmin;
       session.roles = token.isAdmin ? ["admin"] : [];
       return session;

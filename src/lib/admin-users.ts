@@ -272,6 +272,7 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
   const userId = randomUUID();
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
+  let committed = false;
 
   await transaction.begin();
   try {
@@ -310,8 +311,9 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
     await setAdminFlagInTransaction(transaction, userId, email, !!input.isAdmin);
 
     await transaction.commit();
+    committed = true;
   } catch (error) {
-    if (transaction._aborted !== true) {
+    if (!committed) {
       await transaction.rollback().catch(() => undefined);
     }
     throw error;
@@ -377,6 +379,7 @@ export async function replaceManagedUserAccess(
 
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
+  let committed = false;
 
   await transaction.begin();
   try {
@@ -392,8 +395,9 @@ export async function replaceManagedUserAccess(
     }
 
     await transaction.commit();
+    committed = true;
   } catch (error) {
-    if (transaction._aborted !== true) {
+    if (!committed) {
       await transaction.rollback().catch(() => undefined);
     }
     throw error;
