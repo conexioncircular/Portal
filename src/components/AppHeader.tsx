@@ -30,6 +30,7 @@ import {
   LogOut,
   Home,
   Search,
+  Shield,
 } from "lucide-react";
 
 type CommunityRow = {
@@ -75,6 +76,7 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const { data: session } = useSession();
   const effectiveUser: AppUser | null = user ?? (session?.user as AppUser) ?? null;
+  const isAdmin = !!session?.isAdmin;
 
   const [communities, setCommunities] = useState<CommunityRow[]>([]);
   const pathname = usePathname() || "/";
@@ -155,6 +157,7 @@ export default function AppHeader({
             communities={communities}
             onSelect={handleCommunityClick}
             user={effectiveUser}
+            isAdmin={isAdmin}
           />
         </div>
 
@@ -224,6 +227,19 @@ export default function AppHeader({
         <div className="flex-1" />
 
         <div className="hidden items-center gap-3 sm:flex">
+          {isAdmin && (
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-full border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+            >
+              <Link href="/admin">
+                <Shield className="h-4 w-4" />
+                Admin
+              </Link>
+            </Button>
+          )}
+
           {showSearch && (
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
@@ -272,6 +288,11 @@ export default function AppHeader({
               <DropdownMenuItem asChild>
                 <Link href="/post-login">Panel principal</Link>
               </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin">Administración</Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => signOut({ callbackUrl: "/login" })}
@@ -434,12 +455,14 @@ function MobileNav({
   communities,
   onSelect,
   user,
+  isAdmin,
 }: {
   logoSrc: string;
   logoAlt: string;
   communities: CommunityRow[];
   onSelect: (community: CommunityRow) => void;
   user?: AppUser | null;
+  isAdmin: boolean;
 }) {
   const initials = (txt?: string | null) =>
     (txt?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "U").toUpperCase();
@@ -527,6 +550,15 @@ function MobileNav({
             <Button className="w-full rounded-full" asChild>
               <Link href="/post-login">Panel principal</Link>
             </Button>
+
+            {isAdmin && (
+              <Button variant="outline" className="w-full rounded-full" asChild>
+                <Link href="/admin">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Administración
+                </Link>
+              </Button>
+            )}
 
             <Button
               variant="destructive"

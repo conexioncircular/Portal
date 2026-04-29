@@ -2,6 +2,7 @@ import { getServerSession, type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import * as argon2 from "argon2";
 import { getPool } from "./db";
+import { getAdminAccessPaths, isAdminPrincipal } from "./admin";
 
 type UserRow = {
   id: string;
@@ -113,22 +114,38 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger }) {
-      if (user?.id) (token as any).uid = user.id;
+      if (user?.id) token.uid = user.id;
       if (user?.name) token.name = user.name;
       if (user?.email) token.email = user.email as string;
 
+      const uid = String(token.uid ?? token.sub ?? "").trim();
+      const email = String(token.email ?? "").trim().toLowerCase();
+      const needsAdminRefresh =
+        (!!uid || !!email) && (user || token.isAdmin === undefined || trigger === "update");
+
+      if (needsAdminRefresh) {
+        try {
+          token.isAdmin = await isAdminPrincipal({ userId: uid, email });
+        } catch {
+          token.isAdmin = false;
+        }
+      }
+
       const needsAccessRefresh =
-        !!(token as any).uid &&
-        (user || !(token as any).allowedPaths || trigger === "update");
+        !!uid &&
+        (user || !token.allowedPaths || trigger === "update");
 
       if (needsAccessRefresh) {
         try {
-          const { paths, primary } = await getUserAccessPaths((token as any).uid as string);
-          (token as any).allowedPaths = paths;
-          (token as any).primaryPath = primary;
+          const { paths, primary } = token.isAdmin
+            ? await getAdminAccessPaths()
+            : await getUserAccessPaths(uid);
+
+          token.allowedPaths = paths;
+          token.primaryPath = primary;
         } catch {
-          (token as any).allowedPaths = (token as any).allowedPaths ?? [];
-          (token as any).primaryPath = (token as any).primaryPath ?? null;
+          token.allowedPaths = token.allowedPaths ?? [];
+          token.primaryPath = token.primaryPath ?? null;
         }
       }
 
@@ -137,13 +154,17 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = (token as any).uid ?? (token as any).sub ?? null;
+        session.user.id = token.uid ?? token.sub ?? null;
         session.user.name = token.name ?? session.user.name ?? null;
         session.user.email = (token.email as string) ?? session.user.email ?? null;
+        session.user.isAdmin = !!token.isAdmin;
+        session.user.roles = token.isAdmin ? ["admin"] : [];
       }
 
-      (session as any).allowedPaths = (token as any).allowedPaths ?? [];
-      (session as any).primaryPath = (token as any).primaryPath ?? null;
+      session.allowedPaths = token.allowedPaths ?? [];
+      session.primaryPath = token.primaryPath ?? null;
+      session.isAdmin = !!token.isAdmin;
+      session.roles = token.isAdmin ? ["admin"] : [];
       return session;
     },
   },

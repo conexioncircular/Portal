@@ -5,6 +5,7 @@ declare module "next-auth" {
   interface Session {
     // Campos a nivel raíz que ya usas
     userId?: string;
+    isAdmin?: boolean;
     primarySlug?: string | null;
     allowedSlugs?: string[];
     primaryPath?: string;
@@ -14,6 +15,7 @@ declare module "next-auth" {
     // 👇 User enriquecido: ahora incluye 'id'
     user?: DefaultSession["user"] & {
       id?: string;               // <-- NECESARIO para session.user.id
+      isAdmin?: boolean;
       primaryPath?: string;
       allowedPaths?: string[];
       roles?: string[];
@@ -32,6 +34,7 @@ declare module "next-auth/jwt" {
     userId?: string;
     email?: string;
     displayName?: string;
+    isAdmin?: boolean;
     primarySlug?: string | null;
     allowedSlugs?: string[];
     primaryPath?: string;

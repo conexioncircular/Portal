@@ -49,16 +49,31 @@ function isPublic(pathname: string) {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const normalizedPath = norm(pathname);
 
   // Deja pasar rutas públicas
   if (isPublic(pathname)) return NextResponse.next();
 
-  // Solo protegemos comunidades; el resto pasa
-  if (!norm(pathname).startsWith("/comunidades/")) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  if (normalizedPath.startsWith("/admin")) {
+    if (!token) {
+      const url = new URL("/login", req.nextUrl.origin);
+      url.searchParams.set("callbackUrl", req.nextUrl.href);
+      return NextResponse.redirect(url);
+    }
+
+    if (!token.isAdmin) {
+      return NextResponse.redirect(new URL("/unauthorized", req.nextUrl.origin));
+    }
+
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  // Solo protegemos comunidades; el resto pasa
+  if (!normalizedPath.startsWith("/comunidades/")) {
+    return NextResponse.next();
+  }
 
   if (!token) {
     const url = new URL("/login", req.nextUrl.origin);
@@ -66,8 +81,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const allowedPaths: string[] = (token as any).allowedPaths || [];
-  const primaryPath: string | null | undefined = (token as any).primaryPath;
+  if (token.isAdmin) {
+    return NextResponse.next();
+  }
+
+  const allowedPaths = token.allowedPaths ?? [];
+  const primaryPath = token.primaryPath;
 
   // autorizar si el path pertenece a allowedPaths o a la primaria
   const ok =

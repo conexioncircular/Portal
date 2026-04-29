@@ -12,25 +12,32 @@ export default async function PostLogin() {
     redirect("/login?error=AuthRequired");
   }
 
-  const userId = String(session.user.id); // aseguramos string (GUID)
+  let path = typeof session.primaryPath === "string"
+    ? String(session.primaryPath).trim()
+    : "";
 
-  // 2) Buscar la página primaria del usuario y su Path
-  const pool = await getPool();
-  const result = await pool
-    .request()
-    .input("userId", userId) // inferencia => evita EPARAM validate()
-    .query(/* sql */ `
-      SELECT TOP 1 p.[Path]
-      FROM [cms].[UserPageAccess] a
-      JOIN [cms].[Pages] p ON p.[PageId] = a.[PageId]
-      WHERE a.[UserId] = @userId
-        AND a.[IsPrimary] = 1
-    `);
+  if (!path) {
+    const userId = String(session.user.id); // aseguramos string (GUID)
 
-  const rawPath: unknown = result.recordset[0]?.Path;
+    // 2) Buscar la página primaria del usuario y su Path
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("userId", userId) // inferencia => evita EPARAM validate()
+      .query(/* sql */ `
+        SELECT TOP 1 p.[Path]
+        FROM [cms].[UserPageAccess] a
+        JOIN [cms].[Pages] p ON p.[PageId] = a.[PageId]
+        WHERE a.[UserId] = @userId
+          AND a.[IsPrimary] = 1
+      `);
+
+    const rawPath: unknown = result.recordset[0]?.Path;
+
+    path = typeof rawPath === "string" ? rawPath.trim() : "";
+  }
 
   // 3) Normalizar y redirigir
-  let path = typeof rawPath === "string" ? rawPath.trim() : "";
   if (!path) {
     // Fallback si no tiene primaria
     redirect("/");

@@ -8,6 +8,7 @@ const imageHostnames = [
   "encrypted-tbn0.gstatic.com",
   "emmajeanstravels.com",
   "www.cascada.travel",
+  "images.unsplash.com",
 ];
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));

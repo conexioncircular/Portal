@@ -11,6 +11,89 @@ npm run dev
 
 La app usa variables de entorno para autenticacion y base de datos. Toma como base [`.env.example`](./.env.example) y define tus valores locales en `.env.local`.
 
+## Admin interno
+
+El proyecto ahora soporta un rol admin interno para gestionar usuarios y permisos desde API. El rol admin tiene acceso total a las paginas registradas en `cms.Pages` y puede usar endpoints protegidos bajo `/api/admin/**`.
+
+### Bootstrap del primer admin
+
+Como el acceso admin esta protegido, el primer administrador debe existir por una de estas vias:
+
+- Definir `INTERNAL_ADMIN_EMAILS` o `ADMIN_EMAILS` con una lista separada por comas de correos admin.
+- Insertar manualmente el usuario en `auth.AdminUsers`.
+
+La tabla `auth.AdminUsers` se crea automaticamente al primer uso si no existe.
+
+Ejemplo local en `.env.local`:
+
+```powershell
+INTERNAL_ADMIN_EMAILS="admin@dominio.com"
+```
+
+### Endpoints internos admin
+
+Todos requieren sesion autenticada de un usuario admin.
+
+#### 1. Listar paginas administrables
+
+```http
+GET /api/admin/pages
+```
+
+Devuelve los `PageId` disponibles en `cms.Pages` para asignar accesos.
+
+#### 2. Listar usuarios gestionados
+
+```http
+GET /api/admin/users
+```
+
+Devuelve usuarios, accesos actuales, pagina primaria e indicador `isAdmin`.
+
+#### 3. Crear usuario
+
+```http
+POST /api/admin/users
+Content-Type: application/json
+
+{
+  "email": "usuario@dominio.com",
+  "password": "ClaveSegura123!",
+  "displayName": "Usuario Portal",
+  "pageIds": ["<PAGE_ID_1>", "<PAGE_ID_2>"],
+  "primaryPageId": "<PAGE_ID_1>",
+  "isAdmin": false
+}
+```
+
+Si `isAdmin` es `true`, el usuario queda marcado como admin en `auth.AdminUsers` y hereda acceso total.
+
+#### 4. Actualizar contraseña
+
+```http
+PATCH /api/admin/users/<USER_ID>/password
+Content-Type: application/json
+
+{
+  "password": "NuevaClaveSegura123!"
+}
+```
+
+#### 5. Reemplazar accesos a paginas
+
+```http
+PUT /api/admin/users/<USER_ID>/access
+Content-Type: application/json
+
+{
+  "pageIds": ["<PAGE_ID_1>", "<PAGE_ID_3>"],
+  "primaryPageId": "<PAGE_ID_3>",
+  "isAdmin": true
+}
+```
+
+Este endpoint deja exactamente los accesos enviados. Para quitar una pagina, simplemente no la incluyas en `pageIds`.
+
 ## Azure App Service
 
 Se recomienda `App Service Linux` con `Node 22 LTS`.
