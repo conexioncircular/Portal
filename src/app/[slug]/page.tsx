@@ -186,7 +186,7 @@ export async function generateMetadata({
           </a>
         </div>
       </div>
-      <WhatsAppFloating phone="15793660415" preset={`Hola! Quiero reportar un problema en ${comunidad.nombre}.`} />
+      <WhatsAppFloating phone="56988992435" preset={`Hola! Quiero reportar un problema en ${comunidad.nombre}.`} />
     </main>
   );
 }

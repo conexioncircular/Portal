@@ -27,7 +27,7 @@ export default async function CommunityLayout({
         {children}
       </main>
 
-      <WhatsAppFloating phone="15793660415" communityName={communityName} />
+      <WhatsAppFloating phone="56988992435" communityName={communityName} />
     </div>
   );
 }
