@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPool } from "@/lib/db";
-import * as sql from "mssql";
 
 export async function GET() {
   try {
@@ -22,7 +21,7 @@ export async function GET() {
         SELECT DISTINCT 
           p.Title AS Title,
           p.Path  AS Path,
-          NULL    AS LogoUrl   -- <- tu schema no tiene LogoUrl, lo seteamos a NULL
+          p.LogoUrl AS LogoUrl
         FROM auth.Users u
         INNER JOIN cms.UserPageAccess a ON a.UserId = u.UserId
         INNER JOIN cms.Pages p          ON p.PageId = a.PageId

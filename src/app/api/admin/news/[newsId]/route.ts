@@ -5,6 +5,10 @@ import { getAdminNewsById, updateAdminNews } from "@/lib/admin-news";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type RouteContext = {
+  params: Promise<{ newsId: string }>;
+};
+
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -15,14 +19,14 @@ function parseSortOrder(value: unknown): number | null {
   }
 
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
+  if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error("Orden inválido");
   }
 
   return Math.trunc(parsed);
 }
 
-export async function GET(_req: NextRequest, routeContext: any) {
+export async function GET(_req: NextRequest, routeContext: RouteContext) {
   const guard = await requireAdminSession();
   if ("response" in guard) {
     return guard.response;
@@ -45,7 +49,7 @@ export async function GET(_req: NextRequest, routeContext: any) {
   }
 }
 
-export async function PATCH(req: NextRequest, routeContext: any) {
+export async function PATCH(req: NextRequest, routeContext: RouteContext) {
   const guard = await requireAdminSession();
   if ("response" in guard) {
     return guard.response;
@@ -65,7 +69,6 @@ export async function PATCH(req: NextRequest, routeContext: any) {
       isFeatured: !!body?.isFeatured,
       isPublic: body?.isPublic ?? true,
       sortOrder: parseSortOrder(body?.sortOrder),
-      publishedAt: body?.publishedAt ?? null,
     });
 
     return NextResponse.json(updated);

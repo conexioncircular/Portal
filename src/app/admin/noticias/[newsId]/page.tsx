@@ -9,6 +9,17 @@ type PageProps = {
   params: Promise<{ newsId: string }>;
 };
 
+function formatDateTime(value: Date | null): string {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
+}
+
 export default async function EditAdminNewsPage({ params }: PageProps) {
   const { newsId } = await params;
   const [communities, item] = await Promise.all([
@@ -35,11 +46,7 @@ export default async function EditAdminNewsPage({ params }: PageProps) {
         isFeatured: item.isFeatured,
         isPublic: item.isPublic,
         sortOrder: item.sortOrder == null ? "" : String(item.sortOrder),
-        publishedAt: item.publishedAt ? (() => {
-          const offset = item.publishedAt!.getTimezoneOffset();
-          const localDate = new Date(item.publishedAt!.getTime() - offset * 60_000);
-          return localDate.toISOString().slice(0, 16);
-        })() : "",
+        savedAtLabel: formatDateTime(item.createdAt),
       }}
     />
   );

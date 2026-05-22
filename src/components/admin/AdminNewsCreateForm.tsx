@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  NEWS_IMAGE_ACCEPT,
+  NEWS_IMAGE_ALLOWED_LABEL,
+  NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB,
+  getAllowedNewsImageType,
+} from "@/lib/news-image-upload";
 
 type CommunityOption = {
   communityId: string;
@@ -23,7 +29,8 @@ type NewsInitialValues = {
   isFeatured: boolean;
   isPublic: boolean;
   sortOrder: string;
-  publishedAt: string;
+  publishedAt?: string;
+  savedAtLabel?: string;
 };
 
 type AdminNewsCreateFormProps = {
@@ -58,6 +65,11 @@ const INITIAL_FORM: FormState = {
   publishedAt: "",
 };
 
+type UploadResponse = {
+  url?: string;
+  error?: string;
+};
+
 function slugify(value: string): string {
   return value
     .normalize("NFD")
@@ -66,21 +78,6 @@ function slugify(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function toDateTimeLocal(value: string | Date | null | undefined): string {
-  if (!value) {
-    return "";
-  }
-
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  const offset = parsed.getTimezoneOffset();
-  const localDate = new Date(parsed.getTime() - offset * 60_000);
-  return localDate.toISOString().slice(0, 16);
 }
 
 export default function AdminNewsCreateForm({
@@ -101,13 +98,92 @@ export default function AdminNewsCreateForm({
           isFeatured: initialValues.isFeatured,
           isPublic: initialValues.isPublic,
           sortOrder: initialValues.sortOrder,
-          publishedAt: initialValues.publishedAt,
+          publishedAt: initialValues.publishedAt ?? "",
         }
       : INITIAL_FORM
   );
   const [slugDirty, setSlugDirty] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingImagePreviewUrl, setPendingImagePreviewUrl] = useState("");
+  const [imageInputKey, setImageInputKey] = useState(0);
+
+  useEffect(() => {
+    if (!pendingImageFile) {
+      setPendingImagePreviewUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(pendingImageFile);
+    setPendingImagePreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [pendingImageFile]);
+
+  const isBusy = saving || uploadingImage;
+  const previewUrl = pendingImagePreviewUrl || form.imageUrl;
+
+  function resetPendingImage() {
+    setPendingImageFile(null);
+    setImageInputKey((current) => current + 1);
+  }
+
+  function clearImage() {
+    resetPendingImage();
+    setForm((current) => ({ ...current, imageUrl: "" }));
+  }
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+    setErrorMessage("");
+
+    if (!nextFile) {
+      setPendingImageFile(null);
+      return;
+    }
+
+    if (
+      !getAllowedNewsImageType({
+        mimeType: nextFile.type,
+        fileName: nextFile.name,
+      })
+    ) {
+      setErrorMessage(
+        `Formato de imagen no soportado. Usa ${NEWS_IMAGE_ALLOWED_LABEL}.`
+      );
+      resetPendingImage();
+      return;
+    }
+
+    setPendingImageFile(nextFile);
+  }
+
+  async function uploadPendingImage(file: File): Promise<string> {
+    const communityId = form.communityId.trim();
+    if (!communityId) {
+      throw new Error("Debes seleccionar una comunidad antes de subir la imagen.");
+    }
+
+    const uploadData = new FormData();
+    uploadData.set("file", file);
+    uploadData.set("communityId", communityId);
+
+    const response = await fetch("/api/admin/uploads/news-image", {
+      method: "POST",
+      body: uploadData,
+    });
+
+    const payload = (await response.json()) as UploadResponse;
+    if (!response.ok || !payload?.url) {
+      throw new Error(payload?.error || "No se pudo subir la imagen");
+    }
+
+    return payload.url;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -115,9 +191,21 @@ export default function AdminNewsCreateForm({
     setErrorMessage("");
 
     try {
-      const endpoint = mode === "edit" && initialValues
-        ? `/api/admin/news/${initialValues.newsId}`
-        : "/api/admin/news";
+      let imageUrl = form.imageUrl.trim();
+
+      if (pendingImageFile) {
+        setUploadingImage(true);
+        const uploadedImageUrl = await uploadPendingImage(pendingImageFile);
+        imageUrl = uploadedImageUrl;
+        setForm((current) => ({ ...current, imageUrl: uploadedImageUrl }));
+        resetPendingImage();
+        setUploadingImage(false);
+      }
+
+      const endpoint =
+        mode === "edit" && initialValues
+          ? `/api/admin/news/${initialValues.newsId}`
+          : "/api/admin/news";
       const response = await fetch(endpoint, {
         method: mode === "edit" ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,11 +215,10 @@ export default function AdminNewsCreateForm({
           slug: form.slug,
           summary: form.summary,
           bodyHtml: form.bodyHtml,
-          imageUrl: form.imageUrl,
+          imageUrl: imageUrl || null,
           isFeatured: form.isFeatured,
           isPublic: form.isPublic,
           sortOrder: form.sortOrder,
-          publishedAt: form.publishedAt || null,
         }),
       });
 
@@ -149,6 +236,7 @@ export default function AdminNewsCreateForm({
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "No se pudo guardar la noticia");
     } finally {
+      setUploadingImage(false);
       setSaving(false);
     }
   }
@@ -192,8 +280,12 @@ export default function AdminNewsCreateForm({
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700" htmlFor="publishedAt">
+          {initialValues?.savedAtLabel ? (
+            <div className="space-y-2">
+              <div className="flex min-h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-600">
+                {`Registrada: ${initialValues.savedAtLabel}`}
+              </div>
+            <label className="hidden text-sm font-medium text-slate-700" htmlFor="publishedAt">
               Fecha de publicación
             </label>
             <Input
@@ -201,9 +293,12 @@ export default function AdminNewsCreateForm({
               type="datetime-local"
               value={form.publishedAt}
               onChange={(event) => setForm((current) => ({ ...current, publishedAt: event.target.value }))}
-              className="h-12 rounded-2xl border-slate-200 bg-slate-50"
+              className="hidden h-12 rounded-2xl border-slate-200 bg-slate-50"
+              readOnly
+              disabled
             />
-          </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -282,19 +377,7 @@ export default function AdminNewsCreateForm({
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700" htmlFor="imageUrl">
-              URL de imagen
-            </label>
-            <Input
-              id="imageUrl"
-              value={form.imageUrl}
-              onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))}
-              className="h-12 rounded-2xl border-slate-200 bg-slate-50"
-            />
-          </div>
-
+        <div className={`grid gap-4 ${initialValues?.savedAtLabel ? "md:grid-cols-2" : ""}`}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="sortOrder">
               Orden
@@ -302,10 +385,86 @@ export default function AdminNewsCreateForm({
             <Input
               id="sortOrder"
               type="number"
+              min={0}
               value={form.sortOrder}
               onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))}
               className="h-12 rounded-2xl border-slate-200 bg-slate-50"
             />
+            </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700" htmlFor="newsImage">
+              Imagen de la noticia
+            </label>
+            <Input
+              key={imageInputKey}
+              id="newsImage"
+              type="file"
+              accept={NEWS_IMAGE_ACCEPT}
+              onChange={handleImageChange}
+              className="h-auto rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-white hover:file:bg-slate-800"
+              disabled={isBusy}
+            />
+            <p className="text-xs text-slate-500">
+              Selecciona una imagen desde tu PC o celular. Formatos permitidos: {NEWS_IMAGE_ALLOWED_LABEL}. Maximo recomendado: {NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB} MB.
+            </p>
+            {pendingImageFile ? (
+              <p className="text-sm text-sky-700">
+                Archivo listo para subir: {pendingImageFile.name}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt="Vista previa de la noticia"
+                className="h-64 w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-64 items-center justify-center px-6 text-center text-sm text-slate-500">
+                La noticia se guardara sin imagen hasta que selecciones un archivo.
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700" htmlFor="imageUrl">
+                URL almacenada
+              </label>
+              <Input
+                id="imageUrl"
+                value={form.imageUrl}
+                readOnly
+                className="h-12 rounded-2xl border-slate-200 bg-slate-100 text-slate-500"
+              />
+            </div>
+
+            <div className="flex items-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-slate-200"
+                onClick={resetPendingImage}
+                disabled={!pendingImageFile || isBusy}
+              >
+                Descartar archivo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-slate-200"
+                onClick={clearImage}
+                disabled={isBusy || (!pendingImageFile && !form.imageUrl)}
+              >
+                Quitar imagen
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -333,8 +492,8 @@ export default function AdminNewsCreateForm({
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" className="rounded-full border-slate-200" onClick={() => router.push("/admin/noticias")}>Cancelar</Button>
-          <Button type="submit" className="rounded-full bg-slate-950 px-6 hover:bg-slate-800" disabled={saving}>
-            {saving ? "Guardando..." : "Guardar noticia"}
+          <Button type="submit" className="rounded-full bg-slate-950 px-6 hover:bg-slate-800" disabled={isBusy}>
+            {uploadingImage ? "Subiendo imagen..." : saving ? "Guardando..." : "Guardar noticia"}
           </Button>
         </div>
       </form>

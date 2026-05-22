@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
-import * as sql from "mssql";
 
 export async function GET(
   req: Request,
@@ -64,8 +63,11 @@ export async function GET(
         WHERE CAST(CommunityId AS NVARCHAR(50)) = CAST(@cid AS NVARCHAR(50))
           AND IsPublic = 1
         ORDER BY IsFeatured DESC,
+                 CASE WHEN SortOrder IS NULL THEN 1 ELSE 0 END ASC,
+                 COALESCE(SortOrder, 9999) ASC,
                  COALESCE(PublishedAt, CreatedAt) DESC,
-                 COALESCE(SortOrder, 9999) ASC
+                 CreatedAt DESC,
+                 NewsId DESC
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
 

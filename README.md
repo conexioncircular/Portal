@@ -123,6 +123,22 @@ az webapp config appsettings set `
 
 Si usas variables separadas para SQL, define `DB_SERVER`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y opcionalmente `DB_ENCRYPT`.
 
+### Imagenes de noticias en Azure Blob Storage
+
+Para subir imagenes desde el admin y guardarlas en tu storage de Azure, define tambien estas variables:
+
+```powershell
+AZURE_STORAGE_CONNECTION_STRING="<connection-string-del-storage>"
+AZURE_STORAGE_CONTAINER_NAME="<contenedor>"
+AZURE_STORAGE_ACCOUNT_NAME="<nombre-de-la-cuenta>"
+```
+
+Notas:
+
+- El contenedor debe permitir lectura publica de blobs para que las imagenes se vean en el portal.
+- El admin ahora sube la imagen al guardar la noticia y luego persiste la URL final en `cms.News.ImageUrl`.
+- Si usas CDN o dominio propio para servir blobs, agrega `AZURE_STORAGE_PUBLIC_BASE_URL`.
+
 ### 3. Generar el paquete para App Service
 
 ```powershell

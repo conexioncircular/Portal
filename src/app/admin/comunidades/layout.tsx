@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MapPinned, Newspaper, Plus, Shield } from "lucide-react";
+import { MapPinned, Newspaper, Plus, Shield, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export default async function AdminNewsLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminCommunitiesLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect("/login?callbackUrl=/admin/noticias");
+    redirect("/login?callbackUrl=/admin/comunidades");
   }
 
   if (!session.isAdmin) {
@@ -26,13 +30,13 @@ export default async function AdminNewsLayout({ children }: { children: React.Re
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
                 <Shield className="h-4 w-4" />
-                Admin noticias
+                Admin comunidades
               </div>
               <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-950 lg:text-4xl">
-                Noticias de comunidades
+                Comunidades
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-600">
-                Crea y revisa noticias asociadas a comunidades sin alterar el portal publico.
+                Crea comunidades, actualiza sus datos base y administra el logo usado en sus paginas.
               </p>
             </div>
 
@@ -41,24 +45,27 @@ export default async function AdminNewsLayout({ children }: { children: React.Re
                 <Link href="/admin">Volver al admin</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
-                <Link href="/admin/usuarios">Usuarios</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
-                <Link href="/admin/comunidades">
-                  <MapPinned className="h-4 w-4" />
-                  Comunidades
+                <Link href="/admin/usuarios">
+                  <Users className="h-4 w-4" />
+                  Usuarios
                 </Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
                 <Link href="/admin/noticias">
                   <Newspaper className="h-4 w-4" />
+                  Noticias
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
+                <Link href="/admin/comunidades">
+                  <MapPinned className="h-4 w-4" />
                   Listado
                 </Link>
               </Button>
               <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-800">
-                <Link href="/admin/noticias/nueva">
+                <Link href="/admin/comunidades/nueva">
                   <Plus className="h-4 w-4" />
-                  Crear noticia
+                  Crear comunidad
                 </Link>
               </Button>
             </div>

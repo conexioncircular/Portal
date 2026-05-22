@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CheckCircle2,
   KeyRound,
+  MapPinned,
   Newspaper,
   Search,
   Shield,
@@ -739,7 +740,7 @@ export default function AdminConsole() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
               <Sparkles className="h-4 w-4" />
-              Admin interno
+              Admin usuarios
             </div>
 
             <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight text-slate-950 lg:text-4xl">
@@ -779,9 +780,23 @@ export default function AdminConsole() {
         <div className="flex flex-col gap-3 border-t border-white/70 bg-white/70 px-6 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
+              <Link href="/admin">
+                <Shield className="h-4 w-4" />
+                Inicio admin
+              </Link>
+            </Button>
+
+            <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
               <Link href="/admin/noticias">
                 <Newspaper className="h-4 w-4" />
                 Noticias
+              </Link>
+            </Button>
+
+            <Button asChild variant="outline" className="rounded-full border-slate-200 bg-white">
+              <Link href="/admin/comunidades">
+                <MapPinned className="h-4 w-4" />
+                Comunidades
               </Link>
             </Button>
           </div>
@@ -855,7 +870,7 @@ export default function AdminConsole() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <button
                   type="button"
                   onClick={() => openSection("create")}
@@ -880,6 +895,20 @@ export default function AdminConsole() {
                   <p className="text-sm font-semibold text-slate-950">Accesos</p>
                   <p className="mt-2 text-sm text-slate-600">Permisos, página inicial y secundarias.</p>
                 </button>
+                <Link
+                  href="/admin/noticias"
+                  className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-white"
+                >
+                  <p className="text-sm font-semibold text-slate-950">Noticias</p>
+                  <p className="mt-2 text-sm text-slate-600">Ir directo a la consola editorial del portal.</p>
+                </Link>
+                <Link
+                  href="/admin/comunidades"
+                  className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-white"
+                >
+                  <p className="text-sm font-semibold text-slate-950">Comunidades</p>
+                  <p className="mt-2 text-sm text-slate-600">Administrar comunidades, estado y logo por pagina.</p>
+                </Link>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">

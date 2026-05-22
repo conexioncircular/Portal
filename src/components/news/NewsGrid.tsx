@@ -19,6 +19,13 @@ type Props = {
   communitySlug: string;
 };
 
+type NewsImageFrameProps = {
+  src: string;
+  alt: string;
+  className?: string;
+  imageClassName?: string;
+};
+
 function formatDate(value?: string | null) {
   if (!value) return "";
   const d = new Date(value);
@@ -28,6 +35,33 @@ function formatDate(value?: string | null) {
     month: "2-digit",
     year: "numeric",
   }).format(d);
+}
+
+function NewsImageFrame({
+  src,
+  alt,
+  className = "",
+  imageClassName = "",
+}: NewsImageFrameProps) {
+  return (
+    <div className={`relative overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] ${className}`.trim()}>
+      <Image
+        src={src}
+        alt=""
+        fill
+        aria-hidden="true"
+        className="scale-110 object-cover opacity-25 blur-3xl"
+      />
+      <div className="relative flex h-full w-full items-center justify-center p-4">
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          className={`object-contain ${imageClassName}`.trim()}
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function NewsGrid({ items, communitySlug }: Props) {
@@ -52,11 +86,11 @@ export default function NewsGrid({ items, communitySlug }: Props) {
         <div className="grid lg:grid-cols-[1.1fr_0.95fr]">
           <div className="relative min-h-[280px] bg-gray-100">
             {featured.ImageUrl ? (
-              <Image
+              <NewsImageFrame
                 src={featured.ImageUrl}
                 alt={featured.Title}
-                fill
-                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+                className="min-h-[280px]"
+                imageClassName="transition duration-500 group-hover:scale-[1.01]"
               />
             ) : (
               <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-500">
@@ -107,11 +141,10 @@ export default function NewsGrid({ items, communitySlug }: Props) {
               >
                 <div className="relative aspect-[16/10] bg-gray-100">
                   {n.ImageUrl ? (
-                    <Image
+                    <NewsImageFrame
                       src={n.ImageUrl}
                       alt={n.Title}
-                      fill
-                      className="object-cover transition duration-500 group-hover:scale-[1.02]"
+                      imageClassName="transition duration-500 group-hover:scale-[1.01]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-500">

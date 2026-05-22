@@ -1,4 +1,3 @@
-import * as sql from "mssql";
 import { getPool } from "@/lib/db";
 
 export type AdminNewsCommunity = {
@@ -19,6 +18,7 @@ export type AdminNewsListItem = {
   isFeatured: boolean;
   publishedAt: Date | null;
   createdAt: Date | null;
+  updatedAt: Date | null;
 };
 
 export type AdminNewsDetails = {
@@ -33,6 +33,8 @@ export type AdminNewsDetails = {
   isPublic: boolean;
   sortOrder: number | null;
   publishedAt: Date | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
 };
 
 export type CreateAdminNewsInput = {
@@ -45,7 +47,6 @@ export type CreateAdminNewsInput = {
   isFeatured?: boolean;
   isPublic?: boolean;
   sortOrder?: number | null;
-  publishedAt?: string | Date | null;
 };
 
 export type UpdateAdminNewsInput = CreateAdminNewsInput & {
@@ -65,6 +66,7 @@ function normalizeSlug(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function normalizePublishedAt(value: string | Date | null | undefined): Date | null {
   if (!value) {
     return null;
@@ -111,10 +113,13 @@ export async function listAdminNews(): Promise<AdminNewsListItem[]> {
       CAST(ISNULL(n.IsPublic, 0) AS bit) AS isPublic,
       CAST(ISNULL(n.IsFeatured, 0) AS bit) AS isFeatured,
       n.PublishedAt AS publishedAt,
-      n.CreatedAt AS createdAt
+      n.CreatedAt AS createdAt,
+      n.UpdatedAt AS updatedAt
     FROM cms.News n
     INNER JOIN cms.Communities c ON c.CommunityId = n.CommunityId
-    ORDER BY COALESCE(n.PublishedAt, n.CreatedAt) DESC, n.CreatedAt DESC, n.Title ASC
+    ORDER BY n.UpdatedAt DESC,
+             n.CreatedAt DESC,
+             n.NewsId DESC
   `);
 
   return (result.recordset ?? []).map((row) => ({
@@ -128,6 +133,7 @@ export async function listAdminNews(): Promise<AdminNewsListItem[]> {
     isFeatured: !!row.isFeatured,
     publishedAt: row.publishedAt instanceof Date ? row.publishedAt : row.publishedAt ? new Date(row.publishedAt) : null,
     createdAt: row.createdAt instanceof Date ? row.createdAt : row.createdAt ? new Date(row.createdAt) : null,
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt : row.updatedAt ? new Date(row.updatedAt) : null,
   }));
 }
 
@@ -153,7 +159,9 @@ export async function getAdminNewsById(newsId: string): Promise<AdminNewsDetails
         CAST(ISNULL(n.IsFeatured, 0) AS bit) AS isFeatured,
         CAST(ISNULL(n.IsPublic, 0) AS bit) AS isPublic,
         n.SortOrder AS sortOrder,
-        n.PublishedAt AS publishedAt
+        n.PublishedAt AS publishedAt,
+        n.CreatedAt AS createdAt,
+        n.UpdatedAt AS updatedAt
       FROM cms.News n
       WHERE CAST(n.NewsId AS NVARCHAR(50)) = CAST(@newsId AS NVARCHAR(50))
     `);
@@ -175,6 +183,8 @@ export async function getAdminNewsById(newsId: string): Promise<AdminNewsDetails
     isPublic: !!row.isPublic,
     sortOrder: typeof row.sortOrder === "number" ? row.sortOrder : row.sortOrder == null ? null : Number(row.sortOrder),
     publishedAt: row.publishedAt instanceof Date ? row.publishedAt : row.publishedAt ? new Date(row.publishedAt) : null,
+    createdAt: row.createdAt instanceof Date ? row.createdAt : row.createdAt ? new Date(row.createdAt) : null,
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt : row.updatedAt ? new Date(row.updatedAt) : null,
   };
 }
 
@@ -234,9 +244,7 @@ function normalizeNewsInput(input: CreateAdminNewsInput | UpdateAdminNewsInput) 
   const sortOrder = typeof input.sortOrder === "number" && Number.isFinite(input.sortOrder)
     ? Math.trunc(input.sortOrder)
     : null;
-  const publishedAt = normalizePublishedAt(input.publishedAt);
   const hasSortOrder = sortOrder !== null;
-  const hasPublishedAt = publishedAt !== null;
 
   if (!communityId) {
     throw new Error("CommunityId obligatorio");
@@ -253,6 +261,9 @@ function normalizeNewsInput(input: CreateAdminNewsInput | UpdateAdminNewsInput) 
   if (!bodyHtml) {
     throw new Error("BodyHtml obligatorio");
   }
+  if (sortOrder !== null && sortOrder < 0) {
+    throw new Error("Orden invalido");
+  }
 
   return {
     communityId,
@@ -264,14 +275,12 @@ function normalizeNewsInput(input: CreateAdminNewsInput | UpdateAdminNewsInput) 
     isFeatured,
     isPublic,
     sortOrder,
-    publishedAt,
     hasSortOrder,
-    hasPublishedAt,
   };
 }
 
 export async function createAdminNews(input: CreateAdminNewsInput): Promise<{ newsId: string }> {
-  const { communityId, title, slug, summary, bodyHtml, imageUrl, isFeatured, isPublic, sortOrder, publishedAt, hasSortOrder, hasPublishedAt } = normalizeNewsInput(input);
+  const { communityId, title, slug, summary, bodyHtml, imageUrl, isFeatured, isPublic, sortOrder, hasSortOrder } = normalizeNewsInput(input);
 
   await ensureCommunityExists(communityId);
   await ensureUniqueNewsSlug(communityId, slug);
@@ -290,8 +299,6 @@ export async function createAdminNews(input: CreateAdminNewsInput): Promise<{ ne
     .input("isPublic", isPublic)
     .input("hasSortOrder", hasSortOrder)
     .input("sortOrder", sortOrder ?? 0)
-    .input("hasPublishedAt", hasPublishedAt)
-    .input("publishedAt", publishedAt ?? new Date())
     .query(/* sql */ `
       INSERT INTO cms.News (
         NewsId,
@@ -320,7 +327,7 @@ export async function createAdminNews(input: CreateAdminNewsInput): Promise<{ ne
         @isFeatured,
         @isPublic,
         CASE WHEN @hasSortOrder = 1 THEN @sortOrder ELSE NULL END,
-        CASE WHEN @hasPublishedAt = 1 THEN @publishedAt ELSE SYSDATETIME() END,
+        SYSDATETIME(),
         SYSDATETIME(),
         SYSDATETIME()
       )
@@ -345,7 +352,7 @@ export async function updateAdminNews(input: UpdateAdminNewsInput): Promise<{ ne
     throw new Error("Noticia no encontrada");
   }
 
-  const { communityId, title, slug, summary, bodyHtml, imageUrl, isFeatured, isPublic, sortOrder, publishedAt, hasSortOrder, hasPublishedAt } = normalizeNewsInput(input);
+  const { communityId, title, slug, summary, bodyHtml, imageUrl, isFeatured, isPublic, sortOrder, hasSortOrder } = normalizeNewsInput(input);
 
   await ensureCommunityExists(communityId);
   await ensureUniqueNewsSlug(communityId, slug, newsId);
@@ -364,8 +371,6 @@ export async function updateAdminNews(input: UpdateAdminNewsInput): Promise<{ ne
     .input("isPublic", isPublic)
     .input("hasSortOrder", hasSortOrder)
     .input("sortOrder", sortOrder ?? 0)
-    .input("hasPublishedAt", hasPublishedAt)
-    .input("publishedAt", publishedAt ?? existing.publishedAt ?? new Date())
     .query(/* sql */ `
       UPDATE cms.News
       SET CommunityId = CAST(@communityId AS uniqueidentifier),
@@ -377,7 +382,7 @@ export async function updateAdminNews(input: UpdateAdminNewsInput): Promise<{ ne
           IsFeatured = @isFeatured,
           IsPublic = @isPublic,
           SortOrder = CASE WHEN @hasSortOrder = 1 THEN @sortOrder ELSE NULL END,
-          PublishedAt = CASE WHEN @hasPublishedAt = 1 THEN @publishedAt ELSE ISNULL(PublishedAt, SYSDATETIME()) END,
+          PublishedAt = ISNULL(PublishedAt, SYSDATETIME()),
           UpdatedAt = SYSDATETIME()
       WHERE CAST(NewsId AS NVARCHAR(50)) = CAST(@newsId AS NVARCHAR(50))
     `);

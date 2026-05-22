@@ -1,4 +1,3 @@
-// src/lib/data.ts
 import { getPool } from "./db";
 
 export type Community = {
@@ -6,6 +5,7 @@ export type Community = {
   slug: string;
   name: string;
   isActive: boolean;
+  logoUrl: string | null;
 };
 
 function normSlug(s: string) {
@@ -14,30 +14,43 @@ function normSlug(s: string) {
 
 export async function getCommunityBySlug(slug: string): Promise<Community | null> {
   const pool = await getPool();
-  const r = await pool
+  const result = await pool
     .request()
-    // ✅ Inferencia (sin tipo explícito) → evita EPARAM si hubiera un import raro
     .input("slug", normSlug(slug))
     .query(/* sql */ `
       SELECT TOP 1
-        CommunityId AS id,
-        Slug        AS slug,
-        Name        AS name,
-        IsActive    AS isActive
-      FROM cms.Communities
-      WHERE LOWER(Slug) = @slug
+        c.CommunityId AS id,
+        c.Slug AS slug,
+        c.Name AS name,
+        c.IsActive AS isActive,
+        p.LogoUrl AS logoUrl
+      FROM cms.Communities c
+      LEFT JOIN cms.Pages p
+        ON LOWER(p.Path) = CONCAT('/comunidades/', LOWER(c.Slug))
+      WHERE LOWER(c.Slug) = @slug
     `);
 
-  const row = r.recordset?.[0] as Community | undefined;
-  return row ?? null;
+  const row = result.recordset?.[0];
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    slug: String(row.slug ?? ""),
+    name: String(row.name ?? ""),
+    isActive: !!row.isActive,
+    logoUrl: row.logoUrl == null ? null : String(row.logoUrl),
+  };
 }
 
 export async function getAllActiveSlugs(): Promise<string[]> {
   const pool = await getPool();
-  const r = await pool.request().query(/* sql */ `
+  const result = await pool.request().query(/* sql */ `
     SELECT Slug AS slug
     FROM cms.Communities
     WHERE IsActive = 1
   `);
-  return r.recordset.map((x: { slug: string }) => String(x.slug));
+
+  return result.recordset.map((row: { slug: string }) => String(row.slug));
 }

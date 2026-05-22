@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
-import { createAdminNews, listAdminNews } from "@/lib/admin-news";
+import { createAdminCommunity, listAdminCommunities } from "@/lib/admin-communities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
-}
-
-function parseSortOrder(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error("Orden inválido");
-  }
-
-  return Math.trunc(parsed);
 }
 
 export async function GET() {
@@ -29,11 +16,11 @@ export async function GET() {
   }
 
   try {
-    const items = await listAdminNews();
+    const items = await listAdminCommunities();
     return NextResponse.json({ items });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudieron cargar las noticias") },
+      { error: getErrorMessage(error, "No se pudieron cargar las comunidades") },
       { status: 400 }
     );
   }
@@ -47,22 +34,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const created = await createAdminNews({
-      communityId: body?.communityId,
-      title: body?.title,
-      slug: body?.slug,
-      summary: body?.summary,
-      bodyHtml: body?.bodyHtml,
-      imageUrl: body?.imageUrl,
-      isFeatured: !!body?.isFeatured,
-      isPublic: body?.isPublic ?? true,
-      sortOrder: parseSortOrder(body?.sortOrder),
+    const created = await createAdminCommunity({
+      name: body?.name,
+      isActive: body?.isActive ?? true,
+      region: body?.region,
+      localidad: body?.localidad,
+      tipo: body?.tipo,
+      tramo: body?.tramo,
+      logoUrl: body?.logoUrl,
     });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo guardar la noticia") },
+      { error: getErrorMessage(error, "No se pudo guardar la comunidad") },
       { status: 400 }
     );
   }
