@@ -28,6 +28,7 @@ const imageHostnames = Array.from(
   "www.cascada.travel",
   "images.unsplash.com",
   "www.elzorronortino.cl",
+  "agentechatnoticias.blob.core.windows.net",
     azureBlobHostname,
     safeHostnameFromUrl(process.env.AZURE_STORAGE_PUBLIC_BASE_URL),
   ].filter((hostname): hostname is string => Boolean(hostname)))
