@@ -83,7 +83,7 @@ function getBootstrapAdminEmails(): string[] {
   );
 }
 
-function normalizeTramo(value: unknown): string | null {
+function normalizeTramoNumber(value: unknown): string | null {
   const normalized = String(value ?? "").trim();
   if (!normalized) {
     return null;
@@ -98,7 +98,7 @@ function normalizeTramo(value: unknown): string | null {
     throw new Error("Tramo debe ser un numero entero mayor que 0.");
   }
 
-  return `Tramo ${parsed}`;
+  return String(parsed);
 }
 
 async function grantCommunityPageAccessInTransaction(
@@ -183,7 +183,7 @@ function normalizeCommunityInput(input: CreateAdminCommunityInput | UpdateAdminC
   const region = normalizeOptionalText(input.region, "Region", 100);
   const localidad = normalizeOptionalText(input.localidad, "Localidad", 150);
   const tipo = normalizeOptionalText(input.tipo, "Tipo", 100);
-  const tramo = normalizeTramo(input.tramo);
+  const tramoNumber = normalizeTramoNumber(input.tramo);
   const logoUrl = normalizeOptionalText(input.logoUrl, "Logo", 2048);
 
   if (!slug) {
@@ -197,7 +197,7 @@ function normalizeCommunityInput(input: CreateAdminCommunityInput | UpdateAdminC
     region,
     localidad,
     tipo,
-    tramo,
+    tramoNumber,
     logoUrl,
     path: buildCommunityPath(slug),
   };
@@ -361,7 +361,7 @@ export async function getAdminCommunityById(
 export async function createAdminCommunity(
   input: CreateAdminCommunityInput
 ): Promise<{ communityId: string }> {
-  const { name, slug, isActive, region, localidad, tipo, tramo, logoUrl, path } =
+  const { name, slug, isActive, region, localidad, tipo, tramoNumber, logoUrl, path } =
     normalizeCommunityInput(input);
 
   await ensureUniqueCommunitySlug(slug);
@@ -380,9 +380,15 @@ export async function createAdminCommunity(
       .input("region", region)
       .input("localidad", localidad)
       .input("tipo", tipo)
-      .input("tramo", tramo)
+      .input("tramoNumber", tramoNumber)
       .query(/* sql */ `
+        DECLARE @nextCommunityNumber INT = (
+          SELECT COALESCE(MAX(CommunityNumber), 0) + 1
+          FROM cms.Communities WITH (UPDLOCK, HOLDLOCK)
+        );
+
         INSERT INTO cms.Communities (
+          CommunityNumber,
           Slug,
           Name,
           IsActive,
@@ -393,13 +399,14 @@ export async function createAdminCommunity(
         )
         OUTPUT INSERTED.CommunityId AS communityId
         VALUES (
+          @nextCommunityNumber,
           @slug,
           @name,
           @isActive,
           @region,
           @localidad,
           @tipo,
-          @tramo
+          CASE WHEN @tramoNumber IS NULL THEN NULL ELSE CONCAT('Tramo ', @tramoNumber) END
         )
       `);
 
@@ -461,7 +468,7 @@ export async function updateAdminCommunity(
     throw new Error("Comunidad no encontrada");
   }
 
-  const { name, slug, isActive, region, localidad, tipo, tramo, logoUrl, path } =
+  const { name, slug, isActive, region, localidad, tipo, tramoNumber, logoUrl, path } =
     normalizeCommunityInput(input);
 
   await ensureUniqueCommunitySlug(slug, communityId);
@@ -482,16 +489,22 @@ export async function updateAdminCommunity(
       .input("region", region)
       .input("localidad", localidad)
       .input("tipo", tipo)
-      .input("tramo", tramo)
+      .input("tramoNumber", tramoNumber)
       .query(/* sql */ `
+        DECLARE @nextCommunityNumber INT = (
+          SELECT COALESCE(MAX(CommunityNumber), 0) + 1
+          FROM cms.Communities WITH (UPDLOCK, HOLDLOCK)
+        );
+
         UPDATE cms.Communities
-        SET Slug = @slug,
+        SET CommunityNumber = COALESCE(CommunityNumber, @nextCommunityNumber),
+            Slug = @slug,
             Name = @name,
             IsActive = @isActive,
             Region = @region,
             Localidad = @localidad,
             Tipo = @tipo,
-            Tramo = @tramo
+            Tramo = CASE WHEN @tramoNumber IS NULL THEN NULL ELSE CONCAT('Tramo ', @tramoNumber) END
         WHERE CAST(CommunityId AS NVARCHAR(50)) = CAST(@communityId AS NVARCHAR(50))
       `);
 

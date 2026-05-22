@@ -73,17 +73,7 @@ export default async function NoticiaDetallePage({ params }: Props) {
 
         <article className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm">
           {item.ImageUrl ? (
-            <div className="relative overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]">
-              <div className="absolute inset-0 overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.ImageUrl}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-full w-full scale-110 object-cover opacity-25 blur-3xl"
-                />
-              </div>
-
+            <div className="relative overflow-hidden bg-slate-100">
               <div className="relative flex min-h-[280px] items-center justify-center px-4 py-5 md:min-h-[360px] md:px-8 md:py-8">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

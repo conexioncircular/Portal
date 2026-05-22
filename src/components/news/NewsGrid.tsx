@@ -24,6 +24,7 @@ type NewsImageFrameProps = {
   alt: string;
   className?: string;
   imageClassName?: string;
+  variant?: "contain" | "cover";
 };
 
 function formatDate(value?: string | null) {
@@ -42,9 +43,23 @@ function NewsImageFrame({
   alt,
   className = "",
   imageClassName = "",
+  variant = "cover",
 }: NewsImageFrameProps) {
+  if (variant === "cover") {
+    return (
+      <div className={`relative h-full w-full overflow-hidden bg-slate-100 ${className}`.trim()}>
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          className={`object-cover transition duration-500 group-hover:scale-[1.03] ${imageClassName}`.trim()}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`relative overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] ${className}`.trim()}>
+    <div className={`relative h-full w-full overflow-hidden bg-slate-100 ${className}`.trim()}>
       <Image
         src={src}
         alt=""
@@ -84,16 +99,16 @@ export default function NewsGrid({ items, communitySlug }: Props) {
         className="group block overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
       >
         <div className="grid lg:grid-cols-[1.1fr_0.95fr]">
-          <div className="relative min-h-[280px] bg-gray-100">
+          <div className="relative min-h-[320px] bg-slate-100">
             {featured.ImageUrl ? (
               <NewsImageFrame
                 src={featured.ImageUrl}
                 alt={featured.Title}
-                className="min-h-[280px]"
-                imageClassName="transition duration-500 group-hover:scale-[1.01]"
+                className="min-h-[320px]"
+                variant="cover"
               />
             ) : (
-              <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-500">
+              <div className="flex h-full items-center justify-center bg-slate-100 text-sm text-gray-500">
                 Sin imagen
               </div>
             )}
@@ -139,15 +154,15 @@ export default function NewsGrid({ items, communitySlug }: Props) {
                 href={`/comunidades/${communitySlug}/noticias/${n.Slug}`}
                 className="flex h-full flex-col"
               >
-                <div className="relative aspect-[16/10] bg-gray-100">
+                <div className="relative aspect-[16/10] bg-slate-100">
                   {n.ImageUrl ? (
                     <NewsImageFrame
                       src={n.ImageUrl}
                       alt={n.Title}
-                      imageClassName="transition duration-500 group-hover:scale-[1.01]"
+                      variant="cover"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-500">
+                    <div className="flex h-full items-center justify-center bg-slate-100 text-sm text-gray-500">
                       Sin imagen
                     </div>
                   )}

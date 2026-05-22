@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
+  Eye,
+  EyeOff,
   KeyRound,
   MapPinned,
   Newspaper,
@@ -400,6 +402,7 @@ export default function AdminConsole() {
   const [accessForm, setAccessForm] = useState<AccessFormState>(ACCESS_FORM_INITIAL);
   const [passwordUserId, setPasswordUserId] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPasswordValue, setShowPasswordValue] = useState(false);
   const [profileForm, setProfileForm] = useState<ProfileFormState>(PROFILE_FORM_INITIAL);
   const [userSearch, setUserSearch] = useState("");
   const [createPageSearch, setCreatePageSearch] = useState("");
@@ -601,6 +604,7 @@ export default function AdminConsole() {
       }
 
       setNewPassword("");
+      setShowPasswordValue(false);
       setSuccessMessage("Contraseña actualizada correctamente");
       setNotice({ tone: "success", message: "Contraseña actualizada correctamente" });
     } catch (error) {
@@ -714,6 +718,7 @@ export default function AdminConsole() {
 
   function openUserPassword(user: AdminUser) {
     setPasswordUserId(user.userId);
+    setShowPasswordValue(false);
     setActiveSection("password");
   }
 
@@ -1163,7 +1168,7 @@ export default function AdminConsole() {
               </div>
 
               <form className="space-y-5" onSubmit={handleUpdatePassword}>
-                <div className="space-y-2">
+                <div className="relative space-y-2">
                   <label className="text-sm font-medium text-slate-700" htmlFor="password-user">
                     Usuario
                   </label>
@@ -1182,19 +1187,31 @@ export default function AdminConsole() {
                   </select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="relative space-y-2">
                   <label className="text-sm font-medium text-slate-700" htmlFor="new-password">
                     Nueva contraseña
                   </label>
                   <Input
                     id="new-password"
-                    type="password"
+                    type={showPasswordValue ? "text" : "password"}
                     value={newPassword}
                     onChange={(event) => setNewPassword(event.target.value)}
-                    className="h-12 rounded-2xl border-slate-200 bg-slate-50"
+                    className="h-12 rounded-2xl border-slate-200 bg-slate-50 pr-12"
                     placeholder="Mínimo 8 caracteres"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordValue((current) => !current)}
+                    className="absolute right-4 top-[3.2rem] text-slate-500 transition hover:text-slate-800"
+                    aria-label={showPasswordValue ? "Ocultar contrasena" : "Mostrar contrasena"}
+                  >
+                    {showPasswordValue ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex justify-end">

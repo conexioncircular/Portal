@@ -56,6 +56,14 @@ function normalizeUserId(userId?: string | null): string {
   return String(userId ?? "").trim().toLowerCase();
 }
 
+function assertValidPassword(password: string): string {
+  const safePassword = String(password ?? "");
+  if (safePassword.length < 8) {
+    throw new Error("La contrasena debe tener al menos 8 caracteres");
+  }
+  return safePassword;
+}
+
 function uniqueIds(values?: string[]): string[] {
   return Array.from(
     new Set(
@@ -247,7 +255,7 @@ export async function listManagedUsers(): Promise<ManagedUserSummary[]> {
 
 export async function createManagedUser(input: CreateManagedUserInput): Promise<ManagedUserSummary> {
   const email = normalizeEmail(input.email);
-  const password = String(input.password ?? "");
+  const password = assertValidPassword(input.password ?? "");
   const displayName = normalizeDisplayName(input.displayName);
   const requestedPrimaryPageId = String(input.primaryPageId ?? "").trim() || null;
   const pageIds = uniqueIds(input.pageIds);

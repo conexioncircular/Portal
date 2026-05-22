@@ -13,6 +13,8 @@ type UserRow = {
   isActive: boolean;
 };
 
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+
 function normPath(p?: string | null): string {
   const s = String(p ?? "").trim().toLowerCase();
   return s !== "/" && s.endsWith("/") ? s.slice(0, -1) : s;
@@ -75,7 +77,13 @@ async function verifyUser(email: string, password: string): Promise<UserRow | nu
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  },
+  jwt: {
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  },
 
   providers: [
     Credentials({
@@ -113,7 +121,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user?.id) token.uid = user.id;
       if (user?.name) token.name = user.name;
       if (user?.email) token.email = user.email as string;
