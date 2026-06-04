@@ -3,21 +3,38 @@
 type WhatsAppFloatingProps = {
   phone: string;
   communityName?: string;
+  communitySlug?: string;
+  slug?: string;
   preset?: string;
 };
+
+function buildSlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
 
 export default function WhatsAppFloating({
   phone,
   communityName,
+  communitySlug,
+  slug: slugProp,
   preset,
 }: WhatsAppFloatingProps) {
   const cleanPhone = String(phone ?? "").replace(/[^\d]/g, "");
 
+  const slug = communitySlug?.trim() || slugProp?.trim() || (communityName ? buildSlug(communityName) : "");
+
   const message =
     preset?.trim() ||
-    (communityName
-      ? `Hola, quiero comunicarme sobre ${communityName}.`
-      : "Hola, quiero comunicarme con Conexión.");
+    (communityName && slug
+      ? `Hola, quiero crear un caso para esta comunidad: ${communityName} #${slug}`
+      : communityName
+        ? `Hola, quiero crear un caso para esta comunidad: ${communityName}`
+        : "Hola, quiero comunicarme con Conexión.");
 
   const href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
