@@ -169,7 +169,13 @@ az webapp deploy `
 
 ### 5.b. Despliegue con GitHub Actions
 
-El repositorio incluye el workflow [.github/workflows/deploy-azure-appservice.yml](.github/workflows/deploy-azure-appservice.yml), que compila en `ubuntu-latest`, genera `dist/azure-appservice.zip` y lo despliega a Azure App Service.
+El repositorio incluye un unico workflow de despliegue: [.github/workflows/deploy-azure-appservice.yml](.github/workflows/deploy-azure-appservice.yml). Este flujo compila en `ubuntu-latest`, genera `dist/azure-appservice.zip` y lo despliega directo a Azure App Service.
+
+Notas:
+
+- El workflow cancela despliegues anteriores si haces varios `push` seguidos a `main`.
+- El paquete desplegado es el standalone generado por `npm run package:azure`; no sube el repo completo.
+- No mezcles este flujo con un workflow antiguo o con una compilacion en `Deployment Center`, porque eso vuelve el deploy mas lento e inconsistente.
 
 Configura estos secretos en GitHub:
 
