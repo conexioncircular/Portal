@@ -2,7 +2,7 @@ import { getServerSession, type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import * as argon2 from "argon2";
 import { getPool } from "./db";
-import { getAdminAccessPaths, isAdminPrincipal } from "./admin";
+import { isAdminPrincipal } from "./admin";
 
 type UserRow = {
   id: string;
@@ -20,16 +20,9 @@ function normPath(p?: string | null): string {
   return s !== "/" && s.endsWith("/") ? s.slice(0, -1) : s;
 }
 
-function mergePaths(...groups: string[][]): string[] {
-  return Array.from(
-    new Set(
-      groups.flatMap((group) =>
-        group
-          .map((path) => normPath(path))
-          .filter(Boolean)
-      )
-    )
-  );
+function getAdminLandingPath(): string {
+  const candidate = normPath(process.env.ADMIN_DEFAULT_PATH ?? "/admin");
+  return candidate || "/admin";
 }
 
 async function getUserAccessPaths(
@@ -96,21 +89,17 @@ async function loadAuthorizationClaims(uid: string, email: string) {
     return {
       isAdmin,
       allowedPaths: [] as string[],
-      primaryPath: undefined as string | undefined,
+      primaryPath: isAdmin ? getAdminLandingPath() : undefined,
     };
   }
 
   if (isAdmin) {
-    const [userAccess, adminAccess] = await Promise.all([
-      getUserAccessPaths(uid),
-      getAdminAccessPaths(),
-    ]);
-
     return {
       isAdmin,
-      // Un admin conserva su portada personal aunque tenga acceso global.
-      allowedPaths: mergePaths(userAccess.paths, adminAccess.paths),
-      primaryPath: userAccess.primary ?? undefined,
+      // El middleware ya confía en `isAdmin`, así que evitamos inflar el JWT
+      // con todas las rutas y mantenemos el login del admin liviano.
+      allowedPaths: [] as string[],
+      primaryPath: getAdminLandingPath(),
     };
   }
 

@@ -12,6 +12,10 @@ export default async function PostLogin() {
     redirect("/login?error=AuthRequired");
   }
 
+  if (session.isAdmin) {
+    redirect("/admin");
+  }
+
   let path = typeof session.primaryPath === "string"
     ? String(session.primaryPath).trim()
     : "";
