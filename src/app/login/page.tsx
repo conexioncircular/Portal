@@ -90,7 +90,7 @@ function PasswordField({
         type="button"
         onClick={onToggle}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#70757f] transition hover:text-[#111111]"
-        aria-label={visible ? "Ocultar contrasena" : "Mostrar contrasena"}
+        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -126,7 +126,7 @@ function LoginPageContent() {
 
     setMessage({
       tone: "error",
-      text: "No se pudo iniciar sesion. Revisa tu usuario y contrasena.",
+      text: "No se pudo iniciar sesión. Revisa tu usuario y contraseña.",
     });
   }, [searchParams]);
 
@@ -147,7 +147,7 @@ function LoginPageContent() {
     if (!result || result.error) {
       setMessage({
         tone: "error",
-        text: "Credenciales invalidas. Intenta nuevamente.",
+        text: "Credenciales inválidas. Intenta nuevamente.",
       });
       return;
     }
@@ -164,7 +164,7 @@ function LoginPageContent() {
     if (!identifier) {
       setMessage({
         tone: "error",
-        text: "Debes ingresar tu usuario antes de recuperar la contrasena.",
+        text: "Debes ingresar tu usuario antes de recuperar la contraseña.",
       });
       return;
     }
@@ -172,7 +172,7 @@ function LoginPageContent() {
     if (newPassword !== confirmPassword) {
       setMessage({
         tone: "error",
-        text: "Las contrasenas no coinciden.",
+        text: "Las contraseñas no coinciden.",
       });
       return;
     }
@@ -195,7 +195,7 @@ function LoginPageContent() {
         throw new Error(
           typeof payload?.error === "string"
             ? payload.error
-            : "No se pudo actualizar la contrasena."
+            : "No se pudo actualizar la contraseña."
         );
       }
 
@@ -210,7 +210,7 @@ function LoginPageContent() {
       setView("login");
       setMessage({
         tone: "success",
-        text: "Contrasena actualizada. Ya puedes iniciar sesion.",
+        text: "Contraseña actualizada. Ya puedes iniciar sesión.",
       });
     } catch (error) {
       setMessage({
@@ -218,7 +218,7 @@ function LoginPageContent() {
         text:
           error instanceof Error && error.message
             ? error.message
-            : "No se pudo actualizar la contrasena.",
+            : "No se pudo actualizar la contraseña.",
       });
     } finally {
       setResetLoading(false);
@@ -268,8 +268,8 @@ function LoginPageContent() {
                 </h1>
                 <p className="mt-3 text-sm text-[#5f6670]">
                   {view === "login"
-                    ? "Ingresa con tu usuario y contrasena."
-                    : "Define una nueva contrasena para tu usuario."}
+                    ? "Ingresa con tu usuario y contraseña."
+                    : "Define una nueva contraseña para tu usuario."}
                 </p>
               </div>
 
@@ -323,7 +323,7 @@ function LoginPageContent() {
                       id="password"
                       value={password}
                       onChange={setPassword}
-                      placeholder="Contrasena"
+                      placeholder="Contraseña"
                       autoComplete="current-password"
                       visible={showLoginPassword}
                       onToggle={() => setShowLoginPassword((current) => !current)}
@@ -334,7 +334,7 @@ function LoginPageContent() {
                       disabled={loginLoading}
                       className="mt-2 w-full rounded-[10px] bg-[#32d4c5] px-4 py-3 text-[17px] font-medium text-white shadow-[0_8px_18px_rgba(50,212,197,0.28)] transition hover:bg-[#28c7b9] focus:outline-none focus:ring-4 focus:ring-[#18D6B6]/25 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {loginLoading ? "Iniciando..." : "Iniciar sesion"}
+                      {loginLoading ? "Iniciando..." : "Iniciar sesión"}
                     </button>
                   </form>
                 ) : (
@@ -352,7 +352,7 @@ function LoginPageContent() {
                       id="reset-password"
                       value={newPassword}
                       onChange={setNewPassword}
-                      placeholder="Nueva contrasena"
+                      placeholder="Nueva contraseña"
                       autoComplete="new-password"
                       visible={showNewPassword}
                       onToggle={() => setShowNewPassword((current) => !current)}
@@ -362,7 +362,7 @@ function LoginPageContent() {
                       id="reset-password-confirm"
                       value={confirmPassword}
                       onChange={setConfirmPassword}
-                      placeholder="Confirmar nueva contrasena"
+                      placeholder="Confirmar nueva contraseña"
                       autoComplete="new-password"
                       visible={showConfirmPassword}
                       onToggle={() => setShowConfirmPassword((current) => !current)}
@@ -373,7 +373,7 @@ function LoginPageContent() {
                       disabled={resetLoading}
                       className="mt-2 w-full rounded-[10px] bg-[#32d4c5] px-4 py-3 text-[17px] font-medium text-white shadow-[0_8px_18px_rgba(50,212,197,0.28)] transition hover:bg-[#28c7b9] focus:outline-none focus:ring-4 focus:ring-[#18D6B6]/25 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {resetLoading ? "Actualizando..." : "Actualizar contrasena"}
+                      {resetLoading ? "Actualizando..." : "Actualizar contraseña"}
                     </button>
                   </form>
                 )}
@@ -386,7 +386,7 @@ function LoginPageContent() {
                     onClick={openLoginView}
                     className="block w-full transition hover:text-[#0f8f85]"
                   >
-                    Volver al inicio de sesion
+                    Volver al inicio de sesión
                   </button>
                 </div>
               ) : null}

@@ -20,6 +20,18 @@ function normPath(p?: string | null): string {
   return s !== "/" && s.endsWith("/") ? s.slice(0, -1) : s;
 }
 
+function mergePaths(...groups: string[][]): string[] {
+  return Array.from(
+    new Set(
+      groups.flatMap((group) =>
+        group
+          .map((path) => normPath(path))
+          .filter(Boolean)
+      )
+    )
+  );
+}
+
 async function getUserAccessPaths(
   userId: string
 ): Promise<{ paths: string[]; primary: string | null }> {
@@ -75,6 +87,41 @@ async function verifyUser(email: string, password: string): Promise<UserRow | nu
   return ok ? user : null;
 }
 
+async function loadAuthorizationClaims(uid: string, email: string) {
+  const isAdmin = !!uid || !!email
+    ? await isAdminPrincipal({ userId: uid, email }).catch(() => false)
+    : false;
+
+  if (!uid) {
+    return {
+      isAdmin,
+      allowedPaths: [] as string[],
+      primaryPath: undefined as string | undefined,
+    };
+  }
+
+  if (isAdmin) {
+    const [userAccess, adminAccess] = await Promise.all([
+      getUserAccessPaths(uid),
+      getAdminAccessPaths(),
+    ]);
+
+    return {
+      isAdmin,
+      // Un admin conserva su portada personal aunque tenga acceso global.
+      allowedPaths: mergePaths(userAccess.paths, adminAccess.paths),
+      primaryPath: userAccess.primary ?? undefined,
+    };
+  }
+
+  const { paths, primary } = await getUserAccessPaths(uid);
+  return {
+    isAdmin,
+    allowedPaths: paths,
+    primaryPath: primary ?? undefined,
+  };
+}
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
@@ -121,38 +168,38 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user?.id) token.uid = user.id;
       if (user?.name) token.name = user.name;
       if (user?.email) token.email = user.email as string;
 
       const uid = String(token.uid ?? token.sub ?? "").trim();
       const email = String(token.email ?? "").trim().toLowerCase();
-      if (!!uid || !!email) {
-        try {
-          token.isAdmin = await isAdminPrincipal({ userId: uid, email });
-        } catch {
-          token.isAdmin = false;
-        }
-      } else {
-        token.isAdmin = false;
+
+      const shouldRefreshClaims =
+        !!user ||
+        trigger === "update" ||
+        typeof token.isAdmin !== "boolean" ||
+        !Array.isArray(token.allowedPaths);
+
+      if (!shouldRefreshClaims) {
+        token.isAdmin = !!token.isAdmin;
+        token.allowedPaths = token.allowedPaths ?? [];
+        token.primaryPath =
+          typeof token.primaryPath === "string" ? token.primaryPath : undefined;
+        return token;
       }
 
-      if (uid) {
-        try {
-          const { paths, primary } = token.isAdmin
-            ? await getAdminAccessPaths()
-            : await getUserAccessPaths(uid);
-
-          token.allowedPaths = paths;
-          token.primaryPath = primary ?? undefined;
-        } catch {
-          token.allowedPaths = token.allowedPaths ?? [];
-          token.primaryPath = token.primaryPath ?? undefined;
-        }
-      } else {
-        token.allowedPaths = [];
-        token.primaryPath = undefined;
+      try {
+        const claims = await loadAuthorizationClaims(uid, email);
+        token.isAdmin = claims.isAdmin;
+        token.allowedPaths = claims.allowedPaths;
+        token.primaryPath = claims.primaryPath;
+      } catch {
+        token.isAdmin = false;
+        token.allowedPaths = token.allowedPaths ?? [];
+        token.primaryPath =
+          typeof token.primaryPath === "string" ? token.primaryPath : undefined;
       }
 
       return token;

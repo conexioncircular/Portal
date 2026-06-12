@@ -67,10 +67,10 @@ export default async function AdminPage() {
               <Users className="h-6 w-6" />
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-slate-950">
-              Gestion de usuarios
+              Gestión de usuarios
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Consola dedicada para crear usuarios, editar perfiles, actualizar contrasenas y asignar accesos al portal.
+              Consola dedicada para crear usuarios, editar perfiles, actualizar contraseñas y asignar accesos al portal.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -78,7 +78,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestion interna de cuentas.
+                Gestión interna de cuentas.
               </span>
             </div>
           </Link>
@@ -91,10 +91,10 @@ export default async function AdminPage() {
               <Newspaper className="h-6 w-6" />
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-slate-950">
-              Gestion de noticias
+              Gestión de noticias
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Espacio editorial para revisar el listado, crear noticias nuevas y editar imagenes almacenadas en Azure Blob Storage.
+              Espacio editorial para revisar el listado, crear noticias nuevas y editar imágenes almacenadas en Azure Blob Storage.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -102,7 +102,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestion de contenido publico.
+                Gestión de contenido público.
               </span>
             </div>
           </Link>
@@ -115,10 +115,10 @@ export default async function AdminPage() {
               <MapPinned className="h-6 w-6" />
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-slate-950">
-              Gestion de comunidades
+              Gestión de comunidades
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Alta y edicion de comunidades, estado activo y logo asociado a cada pagina.
+              Alta y edición de comunidades, estado activo y logo asociado a cada página.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -126,7 +126,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestion territorial.
+                Gestión territorial.
               </span>
             </div>
           </Link>

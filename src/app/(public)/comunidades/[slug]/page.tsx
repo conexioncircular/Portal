@@ -3,35 +3,16 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { notFound } from "next/navigation";
-import { getCommunityBySlug } from "@/lib/data";
+import WhatsAppFloating from "@/components/WhatsAppFloating";
 import CommunityLogoDisplay from "@/components/community/CommunityLogoDisplay";
 import NewsGrid from "@/components/news/NewsGrid";
+import { getCommunityBySlug, listPublicCommunityNews } from "@/lib/data";
 
 type ParamsShape = { slug: string };
 type Props = { params: Promise<ParamsShape> | ParamsShape };
 
-function normSlug(s: string) {
-  return String(s ?? "").trim().toLowerCase();
-}
-
-function getBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  if (fromEnv) return fromEnv;
-
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel}`;
-
-  return "http://localhost:3000";
-}
-
-async function fetchNews(slug: string) {
-  const base = getBaseUrl();
-  const url = new URL(`/api/communities/${slug}/news`, base);
-  url.searchParams.set("limit", "6");
-
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  if (!res.ok) return { items: [], total: 0 };
-  return res.json();
+function normSlug(value: string) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
 export default async function ComunidadPage({ params }: Props) {
@@ -39,9 +20,11 @@ export default async function ComunidadPage({ params }: Props) {
   const normalizedSlug = normSlug(slug);
 
   const comunidad = await getCommunityBySlug(normalizedSlug);
-  if (!comunidad || !comunidad.isActive) return notFound();
+  if (!comunidad || !comunidad.isActive) {
+    return notFound();
+  }
 
-  const { items: newsItems } = await fetchNews(normalizedSlug);
+  const { items: newsItems } = await listPublicCommunityNews(comunidad.id, { limit: 6 });
 
   return (
     <main className="min-h-screen bg-[#f7f7f5] px-4 py-6 md:px-6 md:py-8">
@@ -72,6 +55,8 @@ export default async function ComunidadPage({ params }: Props) {
           </div>
         </section>
       </div>
+
+      <WhatsAppFloating phone="56988992435" communityName={comunidad.name} communitySlug={comunidad.slug} />
     </main>
   );
 }

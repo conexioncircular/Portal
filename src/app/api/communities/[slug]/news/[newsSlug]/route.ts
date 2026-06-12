@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
+import { getCommunityBySlug, getPublicCommunityNewsDetail } from "@/lib/data";
 
 export async function GET(
   _req: Request,
@@ -10,64 +10,20 @@ export async function GET(
 ) {
   const { slug, newsSlug } = await ctx.params;
 
-  const normCommunity = String(slug ?? "").trim().toLowerCase();
-  const normNewsSlug = String(newsSlug ?? "").trim().toLowerCase();
+  const normalizedCommunity = String(slug ?? "").trim().toLowerCase();
+  const normalizedNewsSlug = String(newsSlug ?? "").trim().toLowerCase();
 
-  if (!normCommunity || !normNewsSlug) {
+  if (!normalizedCommunity || !normalizedNewsSlug) {
     return NextResponse.json({ item: null, error: "Missing params" }, { status: 400 });
   }
 
-  const p1 = `/${normCommunity}`;
-  const p2 = `/comunidades/${normCommunity}`;
-
   try {
-    const pool = await getPool();
-
-    // 1) Resolver CommunityId igual que en tu endpoint de listado
-    const pageRes = await pool
-      .request()
-      .input("p1", p1)
-      .input("p2", p2)
-      .query(`
-        SELECT TOP 1 CommunityId
-        FROM cms.Pages
-        WHERE LOWER(Path) = LOWER(@p1) OR LOWER(Path) = LOWER(@p2)
-      `);
-
-    const communityId: string | undefined = pageRes.recordset?.[0]?.CommunityId;
-
-    if (!communityId) {
+    const community = await getCommunityBySlug(normalizedCommunity);
+    if (!community || !community.isActive) {
       return NextResponse.json({ item: null, error: "Community not found" }, { status: 404 });
     }
 
-    // 2) Traer la noticia completa de esa comunidad
-    const detailRes = await pool
-      .request()
-      .input("cid", communityId)
-      .input("newsSlug", normNewsSlug)
-      .query(`
-        SELECT TOP 1
-          NewsId,
-          CommunityId,
-          Title,
-          Slug,
-          Summary,
-          BodyHtml,
-          ImageUrl,
-          IsFeatured,
-          IsPublic,
-          SortOrder,
-          PublishedAt,
-          CreatedAt,
-          UpdatedAt
-        FROM cms.News
-        WHERE CAST(CommunityId AS NVARCHAR(50)) = CAST(@cid AS NVARCHAR(50))
-          AND LOWER(Slug) = LOWER(@newsSlug)
-          AND IsPublic = 1
-      `);
-
-    const item = detailRes.recordset?.[0] ?? null;
-
+    const item = await getPublicCommunityNewsDetail(community.id, normalizedNewsSlug);
     if (!item) {
       return NextResponse.json({ item: null, error: "News not found" }, { status: 404 });
     }

@@ -9,8 +9,8 @@ type News = {
   Slug: string;
   Summary?: string | null;
   ImageUrl?: string | null;
-  PublishedAt?: string | null;
-  CreatedAt?: string | null;
+  PublishedAt?: string | Date | null;
+  CreatedAt?: string | Date | null;
   IsFeatured?: boolean;
 };
 
@@ -27,7 +27,7 @@ type NewsImageFrameProps = {
   variant?: "contain" | "cover";
 };
 
-function formatDate(value?: string | null) {
+function formatDate(value?: string | Date | null) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";

@@ -64,6 +64,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                 <video
                   controls
                   playsInline
+                  preload="none"
                   className="h-auto w-full object-cover"
                   poster={service.poster}
                 >

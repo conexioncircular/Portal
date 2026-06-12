@@ -46,6 +46,7 @@ export default function OficinaMovilPage() {
               <video
                 controls
                 playsInline
+                preload="none"
                 className="h-auto w-full object-cover"
                 poster="/OFICINA-MOVIL.jpg"
               >

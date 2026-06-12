@@ -32,7 +32,7 @@ export default async function AdminNewsLayout({ children }: { children: React.Re
                 Noticias de comunidades
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-600">
-                Crea y revisa noticias asociadas a comunidades sin alterar el portal publico.
+                Crea y revisa noticias asociadas a comunidades sin alterar el portal público.
               </p>
             </div>
 

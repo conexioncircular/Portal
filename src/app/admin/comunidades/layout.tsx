@@ -36,7 +36,7 @@ export default async function AdminCommunitiesLayout({
                 Comunidades
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-slate-600">
-                Crea comunidades, actualiza sus datos base y administra el logo usado en sus paginas.
+                Crea comunidades, actualiza sus datos base y administra el logo usado en sus páginas.
               </p>
             </div>
 

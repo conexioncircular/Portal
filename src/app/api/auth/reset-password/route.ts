@@ -20,14 +20,14 @@ export async function POST(req: NextRequest) {
 
     if (!password || !confirmPassword) {
       return NextResponse.json(
-        { error: "Debes completar y confirmar la nueva contrasena." },
+        { error: "Debes completar y confirmar la nueva contraseña." },
         { status: 400 }
       );
     }
 
     if (password !== confirmPassword) {
       return NextResponse.json(
-        { error: "Las contrasenas no coinciden." },
+        { error: "Las contraseñas no coinciden." },
         { status: 400 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const message =
       error instanceof Error && error.message
         ? error.message
-        : "No se pudo actualizar la contrasena.";
+        : "No se pudo actualizar la contraseña.";
 
     return NextResponse.json({ error: message }, { status: 400 });
   }

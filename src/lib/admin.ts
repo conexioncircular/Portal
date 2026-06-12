@@ -13,6 +13,8 @@ export type ManagedPage = {
   isPublic: boolean;
 };
 
+let ensureAdminUsersTablePromise: Promise<void> | null = null;
+
 function normalizeEmail(email?: string | null): string {
   return String(email ?? "").trim().toLowerCase();
 }
@@ -39,20 +41,29 @@ export function isBootstrapAdminEmail(email?: string | null): boolean {
 }
 
 export async function ensureAdminUsersTable(): Promise<void> {
-  const pool = await getPool();
-  await pool.request().query(/* sql */ `
-    IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
-    BEGIN
-      CREATE TABLE auth.AdminUsers (
-        UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        Email NVARCHAR(256) NOT NULL UNIQUE,
-        CreatedAt DATETIME2(0) NOT NULL
-          CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
-        UpdatedAt DATETIME2(0) NOT NULL
-          CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
-      );
-    END
-  `);
+  if (!ensureAdminUsersTablePromise) {
+    ensureAdminUsersTablePromise = (async () => {
+      const pool = await getPool();
+      await pool.request().query(/* sql */ `
+        IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
+        BEGIN
+          CREATE TABLE auth.AdminUsers (
+            UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+            Email NVARCHAR(256) NOT NULL UNIQUE,
+            CreatedAt DATETIME2(0) NOT NULL
+              CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
+            UpdatedAt DATETIME2(0) NOT NULL
+              CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
+          );
+        END
+      `);
+    })().catch((error) => {
+      ensureAdminUsersTablePromise = null;
+      throw error;
+    });
+  }
+
+  await ensureAdminUsersTablePromise;
 }
 
 export async function isAdminPrincipal(principal: AdminPrincipal): Promise<boolean> {

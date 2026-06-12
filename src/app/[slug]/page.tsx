@@ -78,7 +78,7 @@ export async function generateStaticParams() {
   return comunidades.map((c) => ({ slug: c.slug }));
 }
 
-// SEO bÃ¡sico por comunidad
+// SEO básico por comunidad
 export async function generateMetadata({
   params,
 }: {

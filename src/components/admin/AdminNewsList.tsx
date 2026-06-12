@@ -181,7 +181,7 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
                 id="newsQuery"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Titulo, slug o comunidad"
+                placeholder="Título, slug o comunidad"
                 className="h-12 rounded-2xl border-slate-200 bg-white pl-10"
               />
             </div>
@@ -208,7 +208,7 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="newsVisibility">
-              Publicacion
+              Publicación
             </label>
             <select
               id="newsVisibility"
@@ -217,8 +217,8 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
               onChange={(event) => setVisibility(event.target.value)}
             >
               <option value="__all__">Todas</option>
-              <option value="publicas">Publicas</option>
-              <option value="privadas">No publicas</option>
+              <option value="publicas">Públicas</option>
+              <option value="privadas">No públicas</option>
             </select>
           </div>
 
@@ -248,10 +248,10 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value as SortOption)}
             >
-              <option value="updated-desc">Edicion mas reciente</option>
-              <option value="created-desc">Carga mas reciente</option>
-              <option value="created-asc">Carga mas antigua</option>
-              <option value="title-asc">Titulo A-Z</option>
+              <option value="updated-desc">Edición más reciente</option>
+              <option value="created-desc">Carga más reciente</option>
+              <option value="created-asc">Carga más antigua</option>
+              <option value="title-asc">Título A-Z</option>
             </select>
           </div>
         </div>
@@ -284,13 +284,13 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
             <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Comunidad</th>
-                <th className="px-4 py-3 font-medium">Titulo</th>
+                <th className="px-4 py-3 font-medium">Título</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Publica</th>
+                <th className="px-4 py-3 font-medium">Pública</th>
                 <th className="px-4 py-3 font-medium">Destacada</th>
                 <th className="px-4 py-3 font-medium">Fecha de carga</th>
-                <th className="px-4 py-3 font-medium">Fecha de edicion</th>
-                <th className="px-4 py-3 font-medium text-right">Accion</th>
+                <th className="px-4 py-3 font-medium">Fecha de edición</th>
+                <th className="px-4 py-3 font-medium text-right">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">

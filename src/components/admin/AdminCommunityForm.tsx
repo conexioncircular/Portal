@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -235,15 +236,27 @@ export default function AdminCommunityForm({
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-slate-950">
-          {mode === "edit" ? "Editar comunidad" : "Nueva comunidad"}
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          {mode === "edit"
-            ? "Actualiza los datos de la comunidad y su logo asociado."
-            : "Crea una comunidad nueva y genera su pagina interna en el portal."}
-        </p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-950">
+            {mode === "edit" ? "Editar comunidad" : "Nueva comunidad"}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            {mode === "edit"
+              ? "Actualiza los datos de la comunidad y su logo asociado."
+              : "Crea una comunidad nueva y genera su página interna en el portal."}
+          </p>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full border-slate-200"
+          onClick={() => router.push("/admin/comunidades")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver al listado
+        </Button>
       </div>
 
       {errorMessage && (
@@ -280,7 +293,7 @@ export default function AdminCommunityForm({
               className="h-12 rounded-2xl border-slate-200 bg-slate-100 text-slate-500"
             />
             <p className="text-xs text-slate-500">
-              Se genera automaticamente en minuscula, sin espacios ni caracteres especiales.
+              Se genera automáticamente en minúscula, sin espacios ni caracteres especiales.
             </p>
           </div>
 
@@ -300,7 +313,7 @@ export default function AdminCommunityForm({
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700" htmlFor="region">
-              Region
+              Región
             </label>
             <Input
               id="region"
@@ -362,7 +375,7 @@ export default function AdminCommunityForm({
               className="h-12 rounded-2xl border-slate-200 bg-slate-50"
             />
             <p className="text-xs text-slate-500">
-              Ingresa solo el numero. Se guardara como `Tramo N`.
+              Ingresa solo el número. Se guardará como `Tramo N`.
             </p>
           </div>
         </div>

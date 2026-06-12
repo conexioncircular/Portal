@@ -154,6 +154,7 @@ export default function HomePage() {
             <video
               src="/principal.mp4"
               controls
+              preload="none"
               className="h-auto w-full"
               poster="/PAGINA-PRINCIPAL.jpg"
             >

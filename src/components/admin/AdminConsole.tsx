@@ -3,12 +3,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
   MapPinned,
   Newspaper,
+  PenSquare,
   Search,
   Shield,
   Sparkles,
@@ -394,6 +396,63 @@ function PagePicker({
   );
 }
 
+type ConsoleSectionHeaderProps = {
+  title: string;
+  description: string;
+  icon: typeof UserRound;
+  iconClassName: string;
+  contextLabel?: string;
+  actions?: Array<{
+    label: string;
+    onClick: () => void;
+  }>;
+};
+
+function ConsoleSectionHeader({
+  title,
+  description,
+  icon: Icon,
+  iconClassName,
+  contextLabel,
+  actions = [],
+}: ConsoleSectionHeaderProps) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start gap-4">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClassName}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm text-slate-600">{description}</p>
+          {contextLabel ? (
+            <div className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+              {contextLabel}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {actions.length > 0 ? (
+        <div className="flex flex-wrap gap-3">
+          {actions.map((action) => (
+            <Button
+              key={action.label}
+              type="button"
+              variant="outline"
+              className="rounded-full border-slate-200 bg-white"
+              onClick={action.onClick}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {action.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminConsole() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pages, setPages] = useState<AdminPage[]>([]);
@@ -420,18 +479,21 @@ export default function AdminConsole() {
   const [notice, setNotice] = useState<NoticeState>(null);
 
   const filteredUsers = filterUsers(users, userSearch);
+  const selectedPasswordUser = users.find((user) => user.userId === passwordUserId);
+  const selectedProfileUser = users.find((user) => user.userId === profileForm.userId);
   const selectedAccessUser = users.find((user) => user.userId === accessForm.userId);
   const menuItems: Array<{
     id: ConsoleSection;
     label: string;
+    hint?: string;
     icon: typeof UserRound;
   }> = [
-    { id: "overview", label: "Resumen", icon: Sparkles },
-    { id: "create", label: "Crear usuario", icon: UserRound },
-    { id: "users", label: "Usuarios", icon: Users },
+    { id: "overview", label: "Resumen", hint: "Vista general", icon: Sparkles },
+    { id: "create", label: "Crear usuario", hint: "Alta de cuentas", icon: UserRound },
+    { id: "users", label: "Usuarios", hint: "Búsqueda y edición", icon: Users },
     { id: "password", label: "Contraseña", icon: KeyRound },
-    { id: "profile", label: "Modificar usuario", icon: UserRound },
-    { id: "access", label: "Accesos", icon: Shield },
+    { id: "profile", label: "Perfil", hint: "Nombre y estado", icon: PenSquare },
+    { id: "access", label: "Accesos", hint: "Permisos de páginas", icon: Shield },
   ];
 
   useEffect(() => {
@@ -834,8 +896,17 @@ export default function AdminConsole() {
         )}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[5.5rem_minmax(0,1fr)] xl:items-start">
+      <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start">
         <aside className="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.06)] xl:sticky xl:top-24">
+          <div className="mb-3 hidden px-2 xl:block">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Navegación
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Selecciona una tarea del panel.
+            </p>
+          </div>
+
           <nav className="flex gap-3 overflow-x-auto xl:flex-col">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -848,14 +919,27 @@ export default function AdminConsole() {
                   title={item.label}
                   aria-label={item.label}
                   onClick={() => openSection(item.id)}
-                  className={`flex h-12 min-w-12 items-center justify-center rounded-[1.2rem] border transition ${
+                  className={`flex min-h-12 min-w-[11rem] items-center gap-3 rounded-[1.2rem] border px-4 py-3 text-left transition xl:w-full ${
                     isActive
                       ? "border-slate-950 bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="sr-only">{item.label}</span>
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                      isActive ? "bg-white/14 text-white" : "bg-white text-slate-700"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{item.label}</span>
+                    {item.hint ? (
+                      <span className={`block text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>
+                        {item.hint}
+                      </span>
+                    ) : null}
+                  </span>
                 </button>
               );
             })}
@@ -912,7 +996,7 @@ export default function AdminConsole() {
                   className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-slate-300 hover:bg-white"
                 >
                   <p className="text-sm font-semibold text-slate-950">Comunidades</p>
-                  <p className="mt-2 text-sm text-slate-600">Administrar comunidades, estado y logo por pagina.</p>
+                  <p className="mt-2 text-sm text-slate-600">Administrar comunidades, estado y logo por página.</p>
                 </Link>
               </div>
 
@@ -941,14 +1025,13 @@ export default function AdminConsole() {
 
           {activeSection === "create" && (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-6 flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                  <UserRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Crear usuario</h2>
-                </div>
-              </div>
+              <ConsoleSectionHeader
+                title="Crear usuario"
+                description="Completa los datos básicos y define la página inicial del usuario."
+                icon={UserRound}
+                iconClassName="bg-slate-950 text-white"
+                actions={[{ label: "Volver a resumen", onClick: () => openSection("overview") }]}
+              />
 
               <form className="space-y-6" onSubmit={handleCreateUser}>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1045,7 +1128,15 @@ export default function AdminConsole() {
                   secondaryHelp=""
                 />
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-slate-200"
+                    onClick={() => openSection("overview")}
+                  >
+                    Volver a resumen
+                  </Button>
                   <Button
                     type="submit"
                     className="rounded-full bg-slate-950 px-6 hover:bg-slate-800"
@@ -1060,14 +1151,13 @@ export default function AdminConsole() {
 
           {activeSection === "users" && (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Usuarios actuales</h2>
-                </div>
-              </div>
+              <ConsoleSectionHeader
+                title="Usuarios actuales"
+                description="Busca usuarios y entra directo a sus acciones más comunes."
+                icon={Users}
+                iconClassName="bg-sky-100 text-sky-700"
+                actions={[{ label: "Volver a resumen", onClick: () => openSection("overview") }]}
+              />
 
               <div className="relative mb-5">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1158,15 +1248,21 @@ export default function AdminConsole() {
 
           {activeSection === "password" && (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Actualizar contraseña</h2>
-                </div>
-              </div>
-
+              <ConsoleSectionHeader
+                title="Actualizar contraseña"
+                description="Cambia la clave del usuario seleccionado sin salir del panel."
+                icon={KeyRound}
+                iconClassName="bg-amber-100 text-amber-700"
+                contextLabel={
+                  selectedPasswordUser
+                    ? `Usuario: ${selectedPasswordUser.displayName || selectedPasswordUser.email}`
+                    : undefined
+                }
+                actions={[
+                  { label: "Volver a usuarios", onClick: () => openSection("users") },
+                  { label: "Volver a resumen", onClick: () => openSection("overview") },
+                ]}
+              />
               <form className="space-y-5" onSubmit={handleUpdatePassword}>
                 <div className="relative space-y-2">
                   <label className="text-sm font-medium text-slate-700" htmlFor="password-user">
@@ -1204,7 +1300,7 @@ export default function AdminConsole() {
                     type="button"
                     onClick={() => setShowPasswordValue((current) => !current)}
                     className="absolute right-4 top-[3.2rem] text-slate-500 transition hover:text-slate-800"
-                    aria-label={showPasswordValue ? "Ocultar contrasena" : "Mostrar contrasena"}
+                    aria-label={showPasswordValue ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showPasswordValue ? (
                       <EyeOff className="h-4 w-4" />
@@ -1214,7 +1310,15 @@ export default function AdminConsole() {
                   </button>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-slate-200"
+                    onClick={() => openSection("users")}
+                  >
+                    Volver a usuarios
+                  </Button>
                   <Button
                     type="submit"
                     className="rounded-full bg-slate-950 px-6 hover:bg-slate-800"
@@ -1229,15 +1333,21 @@ export default function AdminConsole() {
 
           {activeSection === "profile" && (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
-                  <UserRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Editar nombre y estado</h2>
-                </div>
-              </div>
-
+              <ConsoleSectionHeader
+                title="Editar nombre y estado"
+                description="Actualiza el nombre visible y activa o desactiva el acceso del usuario."
+                icon={PenSquare}
+                iconClassName="bg-violet-100 text-violet-700"
+                contextLabel={
+                  selectedProfileUser
+                    ? `Usuario: ${selectedProfileUser.displayName || selectedProfileUser.email}`
+                    : undefined
+                }
+                actions={[
+                  { label: "Volver a usuarios", onClick: () => openSection("users") },
+                  { label: "Volver a resumen", onClick: () => openSection("overview") },
+                ]}
+              />
               <form className="space-y-5" onSubmit={handleUpdateProfile}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700" htmlFor="profile-user">
@@ -1284,7 +1394,15 @@ export default function AdminConsole() {
                   Usuario activo
                 </label>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-slate-200"
+                    onClick={() => openSection("users")}
+                  >
+                    Volver a usuarios
+                  </Button>
                   <Button
                     type="submit"
                     className="rounded-full bg-slate-950 px-6 hover:bg-slate-800"
@@ -1299,15 +1417,21 @@ export default function AdminConsole() {
 
           {activeSection === "access" && (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-              <div className="mb-6 flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Asignar o quitar acceso a páginas</h2>
-                </div>
-              </div>
-
+              <ConsoleSectionHeader
+                title="Asignar o quitar acceso a páginas"
+                description="Define la página inicial y los accesos secundarios del usuario."
+                icon={Shield}
+                iconClassName="bg-emerald-100 text-emerald-700"
+                contextLabel={
+                  selectedAccessUser
+                    ? `Usuario: ${selectedAccessUser.displayName || selectedAccessUser.email}`
+                    : undefined
+                }
+                actions={[
+                  { label: "Volver a usuarios", onClick: () => openSection("users") },
+                  { label: "Volver a resumen", onClick: () => openSection("overview") },
+                ]}
+              />
               <form className="space-y-6" onSubmit={handleUpdateAccess}>
                 <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
                   <div className="space-y-2">
@@ -1396,7 +1520,15 @@ export default function AdminConsole() {
                   secondaryHelp=""
                 />
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-slate-200"
+                    onClick={() => openSection("users")}
+                  >
+                    Volver a usuarios
+                  </Button>
                   <Button
                     type="submit"
                     className="rounded-full bg-slate-950 px-6 hover:bg-slate-800"

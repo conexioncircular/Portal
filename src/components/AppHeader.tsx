@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -48,12 +48,6 @@ export type AppUser = {
   roles?: string[];
 };
 
-type SessionSnapshot = {
-  isAdmin?: boolean;
-  roles?: string[];
-  user?: AppUser | null;
-};
-
 interface AppHeaderProps {
   logoSrc?: string;
   logoAlt?: string;
@@ -83,9 +77,8 @@ export default function AppHeader({
   user,
   showSearch = false,
 }: AppHeaderProps) {
-  const { data: session, update } = useSession();
-  const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot | null>(null);
-  const effectiveSession = sessionSnapshot ?? session ?? null;
+  const { data: session, status } = useSession();
+  const effectiveSession = session ?? null;
   const effectiveUser: AppUser | null = user ?? (effectiveSession?.user as AppUser) ?? null;
   const isAdmin = Boolean(
     effectiveSession?.isAdmin ||
@@ -99,7 +92,6 @@ export default function AppHeader({
   const [communities, setCommunities] = useState<CommunityRow[]>([]);
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const refreshedSessionRef = useRef<string | null>(null);
 
   const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
   const isPublicRoute =
@@ -108,62 +100,12 @@ export default function AppHeader({
   const effectiveLogoSrc = logoSrc ?? (isPublicRoute ? PUBLIC_LOGO : PRIVATE_LOGO);
 
   useEffect(() => {
-    const sessionUserId = String(session?.user?.id ?? "").trim();
-    if (!sessionUserId || hideHeader) {
-      refreshedSessionRef.current = null;
+    if (hideHeader || isPublicRoute || status !== "authenticated" || !session?.user?.email) {
+      setCommunities([]);
       return;
     }
 
-    const refreshKey = `${sessionUserId}:${pathname}`;
-    if (refreshedSessionRef.current === refreshKey) {
-      return;
-    }
-
-    refreshedSessionRef.current = refreshKey;
-    void update();
-  }, [hideHeader, pathname, session?.user?.id, update]);
-
-  useEffect(() => {
-    if (hideHeader) {
-      setSessionSnapshot(null);
-      return;
-    }
-
-    let mounted = true;
-
-    (async () => {
-      try {
-        const response = await fetch("/api/auth/session", {
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (!mounted) {
-          return;
-        }
-
-        if (!response.ok) {
-          setSessionSnapshot(null);
-          return;
-        }
-
-        const data = (await response.json()) as SessionSnapshot;
-        setSessionSnapshot(data);
-      } catch {
-        if (mounted) {
-          setSessionSnapshot(null);
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [hideHeader, pathname]);
-
-  useEffect(() => {
-    if (isPublicRoute || hideHeader) return;
-
+    const controller = new AbortController();
     let mounted = true;
 
     (async () => {
@@ -171,11 +113,19 @@ export default function AppHeader({
         const res = await fetch("/api/public/communities", {
           cache: "no-store",
           credentials: "include",
+          signal: controller.signal,
         });
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!res.ok) {
+          setCommunities([]);
+          return;
+        }
+
         const data = await res.json();
-
-        if (!mounted) return;
-
         const rows = Array.isArray(data)
           ? data
           : Array.isArray(data?.communities)
@@ -184,16 +134,20 @@ export default function AppHeader({
 
         setCommunities(rows);
       } catch (error) {
+        if (!mounted || controller.signal.aborted) {
+          return;
+        }
+
         console.error("Error al cargar comunidades:", error);
-        if (!mounted) return;
         setCommunities([]);
       }
     })();
 
     return () => {
       mounted = false;
+      controller.abort();
     };
-  }, [isPublicRoute, hideHeader]);
+  }, [hideHeader, isPublicRoute, session?.user?.email, status]);
 
   const activeCommunity = useMemo(() => {
   const cur = pathname.toLowerCase();

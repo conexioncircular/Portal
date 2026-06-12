@@ -4,46 +4,26 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import WhatsAppFloating from "@/components/WhatsAppFloating";
 import CommunityLogoDisplay from "@/components/community/CommunityLogoDisplay";
-import { getCommunityBySlug } from "@/lib/data";
+import { getCommunityBySlug, getPublicCommunityNewsDetail } from "@/lib/data";
 
 type ParamsShape = { slug: string; newsSlug: string };
 type Props = { params: Promise<ParamsShape> | ParamsShape };
 
-function normSlug(s: string) {
-  return String(s ?? "").trim().toLowerCase();
+function normSlug(value: string) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
-function getBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  if (fromEnv) return fromEnv;
-
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel}`;
-
-  return "http://localhost:3000";
-}
-
-async function fetchNewsDetail(slug: string, newsSlug: string) {
-  const base = getBaseUrl();
-  const url = new URL(`/api/communities/${slug}/news/${newsSlug}`, base);
-
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  if (!res.ok) return null;
-
-  const data = await res.json();
-  return data?.item ?? null;
-}
-
-function formatDate(value?: string | null) {
+function formatDate(value?: string | Date | null) {
   if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("es-CL", {
     day: "2-digit",
     month: "long",
     year: "numeric",
-  }).format(d);
+  }).format(date);
 }
 
 export default async function NoticiaDetallePage({ params }: Props) {
@@ -53,10 +33,14 @@ export default async function NoticiaDetallePage({ params }: Props) {
   const normalizedNewsSlug = normSlug(newsSlug);
 
   const comunidad = await getCommunityBySlug(communitySlug);
-  if (!comunidad || !comunidad.isActive) return notFound();
+  if (!comunidad || !comunidad.isActive) {
+    return notFound();
+  }
 
-  const item = await fetchNewsDetail(communitySlug, normalizedNewsSlug);
-  if (!item) return notFound();
+  const item = await getPublicCommunityNewsDetail(comunidad.id, normalizedNewsSlug);
+  if (!item) {
+    return notFound();
+  }
 
   return (
     <main className="min-h-screen bg-[#f7f7f5] px-4 py-6 md:px-6 md:py-8">
@@ -129,6 +113,8 @@ export default async function NoticiaDetallePage({ params }: Props) {
           </div>
         </article>
       </div>
+
+      <WhatsAppFloating phone="56988992435" communityName={comunidad.name} communitySlug={comunidad.slug} />
     </main>
   );
 }

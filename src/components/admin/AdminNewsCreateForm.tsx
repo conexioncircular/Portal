@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -243,15 +244,28 @@ export default function AdminNewsCreateForm({
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-slate-950">{mode === "edit" ? "Editar noticia" : "Nueva noticia"}</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          {mode === "edit"
-            ? "Actualiza el contenido y la publicación de esta noticia."
-            : "Crea una noticia para una comunidad y guárdala en el portal."}
-        </p>
-      </div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-950">
+            {mode === "edit" ? "Editar noticia" : "Nueva noticia"}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            {mode === "edit"
+              ? "Actualiza el contenido y la publicación de esta noticia."
+              : "Crea una noticia para una comunidad y guárdala en el portal."}
+          </p>
+        </div>
 
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full border-slate-200"
+          onClick={() => router.push("/admin/noticias")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver al listado
+        </Button>
+      </div>
       {errorMessage && (
         <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMessage}
@@ -427,7 +441,7 @@ export default function AdminNewsCreateForm({
               />
             ) : (
               <div className="flex h-64 items-center justify-center px-6 text-center text-sm text-slate-500">
-                La noticia se guardara sin imagen hasta que selecciones un archivo.
+                La noticia se guardará sin imagen hasta que selecciones un archivo.
               </div>
             )}
           </div>
