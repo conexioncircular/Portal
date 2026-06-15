@@ -1,0 +1,9 @@
+// src/auth.ts (v4)
+import { getServerSession, type Session } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+// devuélvelo tipado: Promise<Session | null>
+export async function auth(): Promise<Session | null> {
+  return getServerSession(authOptions as any);
+}
+

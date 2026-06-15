@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/servicios/layout,_N_T_/servicios/[slug]/layout,_N_T_/servicios/[slug]/page,_N_T_/servicios/asesoria-fomento-productivo"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/servicios/$d$slug/__PAGE__",
+    "/servicios/$d$slug",
+    "/servicios",
+    "/_index"
+  ]
+}

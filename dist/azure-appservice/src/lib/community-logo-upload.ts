@@ -1,0 +1,6 @@
+export {
+  NEWS_IMAGE_ACCEPT as COMMUNITY_LOGO_ACCEPT,
+  NEWS_IMAGE_ALLOWED_LABEL as COMMUNITY_LOGO_ALLOWED_LABEL,
+  NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB as COMMUNITY_LOGO_DEFAULT_MAX_UPLOAD_MB,
+  getAllowedNewsImageType as getAllowedCommunityLogoType,
+} from "@/lib/news-image-upload";

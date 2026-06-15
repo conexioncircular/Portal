@@ -1,0 +1,82 @@
+C:\Users\dquil\Documents\Trabajo\Portal web\portal-conexion-circular
+├── components
+|  ├── CenteredLogo.tsx
+|  ├── CtaGrid.tsx
+|  ├── CtaMatrix.tsx
+|  ├── FeatureImage.tsx
+|  ├── Header-old.tsx
+|  ├── HeroBanner.tsx
+|  ├── HeroTitle.tsx
+|  ├── ImageGallery.tsx
+|  ├── MediaBlock.tsx
+|  └── SimpleHeader.tsx
+├── components.json
+├── data
+|  ├── communities.json
+|  ├── news.json
+|  └── snippets
+|     └── footer.es-ES.html
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── README.md
+├── scripts
+|  └── hash.ts
+├── src
+|  ├── app
+|  |  ├── (public)
+|  |  |  └── comunidades
+|  |  ├── api
+|  |  |  ├── auth
+|  |  |  ├── communities
+|  |  |  ├── dbtest
+|  |  |  ├── debug
+|  |  |  └── util
+|  |  ├── debug-session
+|  |  |  └── page.tsx
+|  |  ├── favicon.ico
+|  |  ├── globals.css
+|  |  ├── health
+|  |  |  └── route.ts
+|  |  ├── layout.tsx
+|  |  ├── layout.tsx.b64
+|  |  ├── login
+|  |  |  └── page.tsx
+|  |  ├── page.tsx
+|  |  ├── post-login
+|  |  |  └── page.tsx
+|  |  ├── unauthorized
+|  |  |  └── page.tsx
+|  |  └── [slug]
+|  |     └── page.tsx
+|  ├── auth.ts
+|  ├── auth.ts.bak
+|  ├── components
+|  |  ├── AppHeader.tsx
+|  |  ├── ClientProviders.tsx
+|  |  ├── CommunitySwitcher.tsx
+|  |  ├── news
+|  |  |  └── NewsGrid.tsx
+|  |  ├── ui
+|  |  |  ├── avatar.tsx
+|  |  |  ├── button.tsx
+|  |  |  ├── dropdown-menu.tsx
+|  |  |  ├── input.tsx
+|  |  |  └── sheet.tsx
+|  |  └── WhatsAppFloating.tsx
+|  ├── lib
+|  |  ├── auth.ts
+|  |  ├── data.ts
+|  |  ├── db.ts
+|  |  └── utils.ts
+|  ├── middleware.ts
+|  └── types
+|     └── next-auth.d.ts
+└── tsconfig.json
+
+directory: 1381 file: 7224
+
+ignored: directory (31)
