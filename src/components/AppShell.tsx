@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import AppHeader from "@/components/AppHeader";
+import AppHeader, { PublicHeader, isPublicAppRoute } from "@/components/AppHeader";
 import ClientProviders from "@/components/ClientProviders";
 
 function Footer({ footerHtml, footerYear }: { footerHtml: string; footerYear: number }) {
@@ -28,6 +28,7 @@ export default function AppShell({
 }) {
   const pathname = usePathname() || "/";
   const isLoginRoute = pathname === "/login";
+  const isPublicRoute = isPublicAppRoute(pathname);
 
   if (isLoginRoute) {
     return (
@@ -35,6 +36,18 @@ export default function AppShell({
         <main className="flex-1">{children}</main>
         <Footer footerHtml={footerHtml} footerYear={footerYear} />
       </div>
+    );
+  }
+
+  if (isPublicRoute) {
+    return (
+      <>
+        <PublicHeader logoSrc="/LOGO-2.png" logoAlt="Conexion" pathname={pathname} />
+        <div className="flex min-h-screen flex-col pt-16">
+          <main className="flex-1">{children}</main>
+          <Footer footerHtml={footerHtml} footerYear={footerYear} />
+        </div>
+      </>
     );
   }
 

@@ -69,6 +69,10 @@ const PUBLIC_LOGO = "/LOGO-2.png";
 const PRIVATE_LOGO = "/conexion-energia.png";
 const CLIENT_NAVIGATION_FALLBACK_MS = 1500;
 
+export function isPublicAppRoute(pathname: string) {
+  return PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
+}
+
 export default function AppHeader({
   logoSrc,
   logoAlt = "Conexion",
@@ -96,8 +100,7 @@ export default function AppHeader({
   const navigationFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
-  const isPublicRoute =
-    PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
+  const isPublicRoute = isPublicAppRoute(pathname);
   const shouldLoadCommunities =
     !hideHeader && !isPublicRoute && status === "authenticated" && !!session?.user?.email;
 
@@ -423,7 +426,7 @@ export default function AppHeader({
   );
 }
 
-function PublicHeader({
+export function PublicHeader({
   logoSrc,
   logoAlt,
   pathname,
