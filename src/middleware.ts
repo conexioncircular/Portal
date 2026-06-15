@@ -2,6 +2,68 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+function getCanonicalOrigin(): URL | null {
+  if (process.env.NODE_ENV !== "production") {
+    return null;
+  }
+
+  const rawValue =
+    process.env.NEXT_PUBLIC_BASE_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || "";
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return new URL(rawValue);
+  } catch {
+    return null;
+  }
+}
+
+function isLocalHostname(hostname: string) {
+  const value = String(hostname ?? "").trim().toLowerCase();
+  return value === "localhost" || value === "127.0.0.1" || value === "::1";
+}
+
+function isDocumentNavigation(req: NextRequest) {
+  if (req.headers.has("rsc") || req.headers.has("next-router-state-tree")) {
+    return false;
+  }
+
+  if (req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch") {
+    return false;
+  }
+
+  const secFetchDest = req.headers.get("sec-fetch-dest");
+  if (secFetchDest && secFetchDest !== "document") {
+    return false;
+  }
+
+  const accept = req.headers.get("accept") ?? "";
+  return accept.includes("text/html");
+}
+
+function getCanonicalRedirect(req: NextRequest): URL | null {
+  if (!isDocumentNavigation(req)) {
+    return null;
+  }
+
+  const canonicalOrigin = getCanonicalOrigin();
+  if (!canonicalOrigin) {
+    return null;
+  }
+
+  const requestHostname = req.nextUrl.hostname.toLowerCase();
+  const canonicalHostname = canonicalOrigin.hostname.toLowerCase();
+
+  if (!requestHostname || requestHostname === canonicalHostname || isLocalHostname(requestHostname)) {
+    return null;
+  }
+
+  return new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin);
+}
+
 // Normaliza: minúsculas y sin "/" final (salvo raíz)
 function norm(p: string) {
   const x = p.split("?")[0].split("#")[0].toLowerCase();
@@ -50,6 +112,11 @@ function isPublic(pathname: string) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const normalizedPath = norm(pathname);
+  const canonicalRedirect = getCanonicalRedirect(req);
+
+  if (canonicalRedirect) {
+    return NextResponse.redirect(canonicalRedirect, 308);
+  }
 
   // Deja pasar rutas públicas
   if (isPublic(pathname)) return NextResponse.next();
@@ -103,6 +170,6 @@ export async function middleware(req: NextRequest) {
 // Intercepta todo excepto estáticos y APIs (ya excluidos por isPublic)
 export const config = {
   matcher: [
-    "/((?!login$|login/|post-login$|post-login/|unauthorized$|unauthorized/|health$|health/|debug-session$|debug-session/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|images/|static/|public/|fonts/|api/|.*\\.[\\w]+$).*)",
+    "/((?!health$|health/|debug-session$|debug-session/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|images/|static/|public/|fonts/|api/|.*\\.[\\w]+$).*)",
   ],
 };
