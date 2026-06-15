@@ -26,6 +26,13 @@ function isLocalHostname(hostname: string) {
   return value === "localhost" || value === "127.0.0.1" || value === "::1";
 }
 
+function getRequestHostname(req: NextRequest) {
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const rawHost = (forwardedHost?.split(",")[0] ?? req.nextUrl.hostname).trim().toLowerCase();
+
+  return rawHost.split(":")[0];
+}
+
 function isDocumentNavigation(req: NextRequest) {
   if (req.headers.has("rsc") || req.headers.has("next-router-state-tree")) {
     return false;
@@ -54,7 +61,7 @@ function getCanonicalRedirect(req: NextRequest): URL | null {
     return null;
   }
 
-  const requestHostname = req.nextUrl.hostname.toLowerCase();
+  const requestHostname = getRequestHostname(req);
   const canonicalHostname = canonicalOrigin.hostname.toLowerCase();
 
   if (!requestHostname || requestHostname === canonicalHostname || isLocalHostname(requestHostname)) {
