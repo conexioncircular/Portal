@@ -10,6 +10,44 @@ type MessageState =
   | { tone: "error" | "success"; text: string }
   | null;
 
+const LOGIN_REQUEST_TIMEOUT_MS = 20000;
+
+function getLoginErrorMessage(error?: string | null) {
+  const code = String(error ?? "").trim();
+
+  switch (code) {
+    case "CredentialsSignin":
+      return "Correo o contrasena incorrectos.";
+    case "MissingCredentials":
+      return "Debes ingresar tu correo y contrasena.";
+    case "AuthDbTimeout":
+      return "No se pudo validar el acceso porque el servidor demoro demasiado en responder.";
+    case "AuthDbUnavailable":
+    case "AuthPasswordVerificationFailed":
+    case "Configuration":
+      return "No se pudo validar el acceso por un problema del servidor. Intenta nuevamente en unos minutos.";
+    default:
+      return "No se pudo iniciar sesion. Revisa tu correo y contrasena.";
+  }
+}
+
+async function signInWithTimeout(email: string, password: string, callbackUrl: string) {
+  return Promise.race([
+    signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+      callbackUrl,
+    }),
+    new Promise<Awaited<ReturnType<typeof signIn>>>((resolve) => {
+      setTimeout(
+        () => resolve({ error: "AuthDbTimeout", ok: false, status: 504, url: null }),
+        LOGIN_REQUEST_TIMEOUT_MS
+      );
+    }),
+  ]);
+}
+
 function MessageBox({ message }: { message: MessageState }) {
   if (!message) {
     return null;
@@ -90,7 +128,7 @@ function PasswordField({
         type="button"
         onClick={onToggle}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#70757f] transition hover:text-[#111111]"
-        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        aria-label={visible ? "Ocultar contrasena" : "Mostrar contrasena"}
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -126,7 +164,7 @@ function LoginPageContent() {
 
     setMessage({
       tone: "error",
-      text: "No se pudo iniciar sesión. Revisa tu usuario y contraseña.",
+      text: getLoginErrorMessage(error),
     });
   }, [searchParams]);
 
@@ -135,19 +173,14 @@ function LoginPageContent() {
     setMessage(null);
     setLoginLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-      callbackUrl,
-    });
+    const result = await signInWithTimeout(email, password, callbackUrl);
 
     setLoginLoading(false);
 
     if (!result || result.error) {
       setMessage({
         tone: "error",
-        text: "Credenciales inválidas. Intenta nuevamente.",
+        text: getLoginErrorMessage(result?.error),
       });
       return;
     }
@@ -164,7 +197,7 @@ function LoginPageContent() {
     if (!identifier) {
       setMessage({
         tone: "error",
-        text: "Debes ingresar tu usuario antes de recuperar la contraseña.",
+        text: "Debes ingresar tu correo antes de recuperar la contrasena.",
       });
       return;
     }
@@ -172,7 +205,7 @@ function LoginPageContent() {
     if (newPassword !== confirmPassword) {
       setMessage({
         tone: "error",
-        text: "Las contraseñas no coinciden.",
+        text: "Las contrasenas no coinciden.",
       });
       return;
     }
@@ -195,7 +228,7 @@ function LoginPageContent() {
         throw new Error(
           typeof payload?.error === "string"
             ? payload.error
-            : "No se pudo actualizar la contraseña."
+            : "No se pudo actualizar la contrasena."
         );
       }
 
@@ -210,7 +243,7 @@ function LoginPageContent() {
       setView("login");
       setMessage({
         tone: "success",
-        text: "Contraseña actualizada. Ya puedes iniciar sesión.",
+        text: "Contrasena actualizada. Ya puedes iniciar sesion.",
       });
     } catch (error) {
       setMessage({
@@ -218,7 +251,7 @@ function LoginPageContent() {
         text:
           error instanceof Error && error.message
             ? error.message
-            : "No se pudo actualizar la contraseña.",
+            : "No se pudo actualizar la contrasena.",
       });
     } finally {
       setResetLoading(false);
@@ -268,8 +301,8 @@ function LoginPageContent() {
                 </h1>
                 <p className="mt-3 text-sm text-[#5f6670]">
                   {view === "login"
-                    ? "Ingresa con tu usuario y contraseña."
-                    : "Define una nueva contraseña para tu usuario."}
+                    ? "Ingresa con tu correo y contrasena."
+                    : "Define una nueva contrasena para tu correo."}
                 </p>
               </div>
 
@@ -280,7 +313,7 @@ function LoginPageContent() {
                   <form className="space-y-3" onSubmit={onSubmit}>
                     <div className="relative">
                       <label htmlFor="email" className="sr-only">
-                        Usuario o correo
+                        Correo
                       </label>
 
                       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#70757f]">
@@ -313,7 +346,7 @@ function LoginPageContent() {
                         name="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
-                        placeholder="Usuario o correo"
+                        placeholder="Correo"
                         autoComplete="username"
                         className="w-full rounded-[10px] border border-[#cfd4db] bg-[#f5f6f7] py-3 pl-10 pr-4 text-[15px] text-[#111111] outline-none transition placeholder:text-[#7b818a] focus:border-[#18D6B6] focus:bg-white focus:ring-4 focus:ring-[#18D6B6]/15"
                       />
@@ -323,7 +356,7 @@ function LoginPageContent() {
                       id="password"
                       value={password}
                       onChange={setPassword}
-                      placeholder="Contraseña"
+                      placeholder="Contrasena"
                       autoComplete="current-password"
                       visible={showLoginPassword}
                       onToggle={() => setShowLoginPassword((current) => !current)}
@@ -334,14 +367,14 @@ function LoginPageContent() {
                       disabled={loginLoading}
                       className="mt-2 w-full rounded-[10px] bg-[#32d4c5] px-4 py-3 text-[17px] font-medium text-white shadow-[0_8px_18px_rgba(50,212,197,0.28)] transition hover:bg-[#28c7b9] focus:outline-none focus:ring-4 focus:ring-[#18D6B6]/25 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {loginLoading ? "Iniciando..." : "Iniciar sesión"}
+                      {loginLoading ? "Iniciando..." : "Iniciar sesion"}
                     </button>
                   </form>
                 ) : (
                   <form className="space-y-3" onSubmit={onResetSubmit}>
                     <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3 text-left">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Usuario
+                        Correo
                       </p>
                       <p className="mt-1 text-sm font-medium text-slate-800">
                         {resetIdentifier}
@@ -352,7 +385,7 @@ function LoginPageContent() {
                       id="reset-password"
                       value={newPassword}
                       onChange={setNewPassword}
-                      placeholder="Nueva contraseña"
+                      placeholder="Nueva contrasena"
                       autoComplete="new-password"
                       visible={showNewPassword}
                       onToggle={() => setShowNewPassword((current) => !current)}
@@ -362,7 +395,7 @@ function LoginPageContent() {
                       id="reset-password-confirm"
                       value={confirmPassword}
                       onChange={setConfirmPassword}
-                      placeholder="Confirmar nueva contraseña"
+                      placeholder="Confirmar nueva contrasena"
                       autoComplete="new-password"
                       visible={showConfirmPassword}
                       onToggle={() => setShowConfirmPassword((current) => !current)}
@@ -373,7 +406,7 @@ function LoginPageContent() {
                       disabled={resetLoading}
                       className="mt-2 w-full rounded-[10px] bg-[#32d4c5] px-4 py-3 text-[17px] font-medium text-white shadow-[0_8px_18px_rgba(50,212,197,0.28)] transition hover:bg-[#28c7b9] focus:outline-none focus:ring-4 focus:ring-[#18D6B6]/25 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {resetLoading ? "Actualizando..." : "Actualizar contraseña"}
+                      {resetLoading ? "Actualizando..." : "Actualizar contrasena"}
                     </button>
                   </form>
                 )}
@@ -386,7 +419,7 @@ function LoginPageContent() {
                     onClick={openLoginView}
                     className="block w-full transition hover:text-[#0f8f85]"
                   >
-                    Volver al inicio de sesión
+                    Volver al inicio de sesion
                   </button>
                 </div>
               ) : null}

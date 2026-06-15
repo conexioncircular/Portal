@@ -23,7 +23,7 @@ export async function resetPasswordByIdentifier(
   const safePassword = normalizePassword(password);
 
   if (!safeIdentifier) {
-    throw new Error("Debes ingresar tu usuario o correo.");
+    throw new Error("Debes ingresar tu correo.");
   }
 
   const pool = await getPool();

@@ -28,6 +28,52 @@ type AuthenticatedUser = {
 };
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+const AUTH_LOOKUP_TIMEOUT_MS = Math.max(
+  Number(process.env.AUTH_LOOKUP_TIMEOUT_MS ?? 15000) || 15000,
+  1000
+);
+
+const AUTH_ERROR_CODES = {
+  dbTimeout: "AuthDbTimeout",
+  dbUnavailable: "AuthDbUnavailable",
+  passwordVerificationFailed: "AuthPasswordVerificationFailed",
+} as const;
+
+function createAuthError(code: string) {
+  const error = new Error(code);
+  error.name = "AuthError";
+  return error;
+}
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, errorCode: string) {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(createAuthError(errorCode)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
+function maskEmail(email: string) {
+  const [localPart = "", domainPart = ""] = String(email ?? "").trim().split("@");
+  if (!localPart || !domainPart) {
+    return "(invalid-email)";
+  }
+
+  const visibleLocal = localPart.length <= 2
+    ? `${localPart[0] ?? "*"}*`
+    : `${localPart.slice(0, 2)}***`;
+
+  return `${visibleLocal}@${domainPart}`;
+}
 
 function normPath(path?: string | null): string {
   const value = String(path ?? "").trim().toLowerCase();
@@ -78,53 +124,82 @@ async function getUserAccessPaths(
 async function fetchLoginCandidate(
   email: string
 ): Promise<(UserRow & { isAdmin: boolean; accessRows: AccessRow[] }) | null> {
-  const pool = await getPool();
   const safeEmail = String(email ?? "").trim().toLowerCase();
+  const startedAt = Date.now();
 
-  const result = await pool
-    .request()
-    .input("email", safeEmail)
-    .query(/* sql */ `
-      IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
-      BEGIN
-        CREATE TABLE auth.AdminUsers (
-          UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-          Email NVARCHAR(256) NOT NULL UNIQUE,
-          CreatedAt DATETIME2(0) NOT NULL
-            CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
-          UpdatedAt DATETIME2(0) NOT NULL
-            CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
-        );
-      END;
+  let result;
+  try {
+    result = await withTimeout(
+      (async () => {
+        const pool = await getPool();
+        return pool
+          .request()
+          .input("email", safeEmail)
+          .query(/* sql */ `
+            IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
+            BEGIN
+              CREATE TABLE auth.AdminUsers (
+                UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+                Email NVARCHAR(256) NOT NULL UNIQUE,
+                CreatedAt DATETIME2(0) NOT NULL
+                  CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
+                UpdatedAt DATETIME2(0) NOT NULL
+                  CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
+              );
+            END;
 
-      SELECT TOP 1
-        u.UserId AS id,
-        u.Email AS email,
-        u.DisplayName AS displayName,
-        u.PasswordHash AS passwordHash,
-        u.PasswordAlgo AS passwordAlgo,
-        CAST(u.IsActive AS bit) AS isActive,
-        CAST(
-          CASE
-            WHEN EXISTS (
-              SELECT 1
-              FROM auth.AdminUsers au
-              WHERE au.UserId = u.UserId OR LOWER(au.Email) = LOWER(u.Email)
-            ) THEN 1
-            ELSE 0
-          END
-        AS bit) AS isAdmin
-      FROM auth.Users u
-      WHERE LOWER(u.Email) = LOWER(@email);
+            SELECT TOP 1
+              u.UserId AS id,
+              u.Email AS email,
+              u.DisplayName AS displayName,
+              u.PasswordHash AS passwordHash,
+              u.PasswordAlgo AS passwordAlgo,
+              CAST(u.IsActive AS bit) AS isActive,
+              CAST(
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM auth.AdminUsers au
+                    WHERE au.UserId = u.UserId OR LOWER(au.Email) = LOWER(u.Email)
+                  ) THEN 1
+                  ELSE 0
+                END
+              AS bit) AS isAdmin
+            FROM auth.Users u
+            WHERE LOWER(u.Email) = LOWER(@email);
 
-      SELECT
-        p.Path,
-        upa.IsPrimary
-      FROM auth.Users u
-      JOIN cms.UserPageAccess upa ON upa.UserId = u.UserId
-      JOIN cms.Pages p ON p.PageId = upa.PageId
-      WHERE LOWER(u.Email) = LOWER(@email);
-    `);
+            SELECT
+              p.Path,
+              upa.IsPrimary
+            FROM auth.Users u
+            JOIN cms.UserPageAccess upa ON upa.UserId = u.UserId
+            JOIN cms.Pages p ON p.PageId = upa.PageId
+            WHERE LOWER(u.Email) = LOWER(@email);
+          `);
+      })(),
+      AUTH_LOOKUP_TIMEOUT_MS,
+      AUTH_ERROR_CODES.dbTimeout
+    );
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const maskedEmail = maskEmail(safeEmail);
+
+    if (error instanceof Error && error.message === AUTH_ERROR_CODES.dbTimeout) {
+      console.error("[auth] login lookup timed out", {
+        email: maskedEmail,
+        elapsedMs,
+        timeoutMs: AUTH_LOOKUP_TIMEOUT_MS,
+      });
+      throw error;
+    }
+
+    console.error("[auth] login lookup failed", {
+      email: maskedEmail,
+      elapsedMs,
+      error,
+    });
+    throw createAuthError(AUTH_ERROR_CODES.dbUnavailable);
+  }
 
   const recordsets = result.recordsets as unknown as Array<unknown[]> | undefined;
   const userRecordset = (recordsets?.[0] ?? []) as Array<UserRow & { isAdmin: boolean }>;
@@ -150,7 +225,17 @@ async function authenticateUser(
     return null;
   }
 
-  const isValidPassword = await argon2.verify(candidate.passwordHash, password).catch(() => false);
+  let isValidPassword = false;
+  try {
+    isValidPassword = await argon2.verify(candidate.passwordHash, password);
+  } catch (error) {
+    console.error("[auth] password verification failed", {
+      email: maskEmail(candidate.email),
+      error,
+    });
+    throw createAuthError(AUTH_ERROR_CODES.passwordVerificationFailed);
+  }
+
   if (!isValidPassword) {
     return null;
   }
@@ -243,7 +328,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Debes ingresar correo y contrasena");
+          throw new Error("MissingCredentials");
         }
 
         const email = credentials.email.toLowerCase().trim();
@@ -251,7 +336,7 @@ export const authOptions: NextAuthOptions = {
         const user = await authenticateUser(email, password);
 
         if (!user) {
-          throw new Error("Credenciales invalidas");
+          return null;
         }
 
         return user;

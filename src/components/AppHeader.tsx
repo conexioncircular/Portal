@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -57,23 +57,21 @@ interface AppHeaderProps {
 
 const BRAND_DARK = "#1E1A1D";
 const BRAND_BLUE_SOFT = "#EAF8FD";
-
 const PUBLIC_ROUTES = ["/", "/comunidades", "/politica-de-seguridad", "/Oficina-movil"];
 const HIDE_HEADER_ROUTES = ["/login"];
-
 const PUBLIC_NAV_ITEMS = [
   { label: "Inicio", href: "/" },
   { label: "Comunidades", href: "/comunidades" },
-  { label: "Oficina Móvil", href: "/Oficina-movil" },
-  { label: "Política de seguridad", href: "/politica-de-seguridad" },
+  { label: "Oficina Movil", href: "/Oficina-movil" },
+  { label: "Politica de seguridad", href: "/politica-de-seguridad" },
 ];
-
 const PUBLIC_LOGO = "/LOGO-2.png";
 const PRIVATE_LOGO = "/conexion-energia.png";
+const CLIENT_NAVIGATION_FALLBACK_MS = 1500;
 
 export default function AppHeader({
   logoSrc,
-  logoAlt = "Conexión",
+  logoAlt = "Conexion",
   user,
   showSearch = false,
 }: AppHeaderProps) {
@@ -90,25 +88,30 @@ export default function AppHeader({
   );
 
   const [communities, setCommunities] = useState<CommunityRow[]>([]);
+  const [communityMenuOpen, setCommunityMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [signOutPending, setSignOutPending] = useState(false);
   const pathname = usePathname() || "/";
   const router = useRouter();
+  const navigationFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hideHeader = HIDE_HEADER_ROUTES.includes(pathname);
   const isPublicRoute =
     PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/servicios/");
+  const shouldLoadCommunities =
+    !hideHeader && !isPublicRoute && status === "authenticated" && !!session?.user?.email;
 
   const effectiveLogoSrc = logoSrc ?? (isPublicRoute ? PUBLIC_LOGO : PRIVATE_LOGO);
 
   useEffect(() => {
-    if (hideHeader || isPublicRoute || status !== "authenticated" || !session?.user?.email) {
-      setCommunities([]);
+    if (!shouldLoadCommunities) {
       return;
     }
 
     const controller = new AbortController();
     let mounted = true;
 
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch("/api/public/communities", {
           cache: "no-store",
@@ -147,28 +150,92 @@ export default function AppHeader({
       mounted = false;
       controller.abort();
     };
-  }, [hideHeader, isPublicRoute, session?.user?.email, status]);
+  }, [session?.user?.email, shouldLoadCommunities]);
+
+  useEffect(() => {
+    return () => {
+      if (navigationFallbackRef.current) {
+        clearTimeout(navigationFallbackRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (navigationFallbackRef.current) {
+      clearTimeout(navigationFallbackRef.current);
+      navigationFallbackRef.current = null;
+    }
+  }, [pathname]);
+
+  const visibleCommunities = useMemo(
+    () => (shouldLoadCommunities ? communities : []),
+    [communities, shouldLoadCommunities]
+  );
 
   const activeCommunity = useMemo(() => {
-  const cur = pathname.toLowerCase();
+    const currentPath = pathname.toLowerCase();
 
-  return (
-    communities.find((c) => {
-      const path = (c.Path || "").toLowerCase();
-      return path && (cur === path || cur.startsWith(`${path}/`));
-    }) ?? null
-  );
-}, [communities, pathname]);
+    return (
+      visibleCommunities.find((community) => {
+        const communityPath = (community.Path || "").toLowerCase();
+        return (
+          communityPath &&
+          (currentPath === communityPath || currentPath.startsWith(`${communityPath}/`))
+        );
+      }) ?? null
+    );
+  }, [pathname, visibleCommunities]);
 
-  const initials = (txt?: string | null) =>
-    (txt?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "U").toUpperCase();
+  const initials = (text?: string | null) =>
+    (text?.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("") || "U").toUpperCase();
 
-  const handleCommunityClick = (community: CommunityRow) => {
-    const path = community.Path?.startsWith("/") ? community.Path : `/${community.Path ?? ""}`;
-    if (path) router.push(path);
+  const navigateToPath = (targetPath: string) => {
+    const normalizedTarget = String(targetPath ?? "").trim();
+    if (!normalizedTarget) {
+      return;
+    }
+
+    setCommunityMenuOpen(false);
+    setAccountMenuOpen(false);
+
+    if (navigationFallbackRef.current) {
+      clearTimeout(navigationFallbackRef.current);
+    }
+
+    router.push(normalizedTarget);
+
+    navigationFallbackRef.current = setTimeout(() => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      if (window.location.pathname.toLowerCase() !== normalizedTarget.toLowerCase()) {
+        window.location.assign(normalizedTarget);
+      }
+    }, CLIENT_NAVIGATION_FALLBACK_MS);
   };
 
-  if (hideHeader) return null;
+  const handleCommunitySelect = (community: CommunityRow) => {
+    const path = community.Path?.startsWith("/") ? community.Path : `/${community.Path ?? ""}`;
+    if (path) {
+      navigateToPath(path);
+    }
+  };
+
+  const handleSignOut = () => {
+    setCommunityMenuOpen(false);
+    setAccountMenuOpen(false);
+    setSignOutPending(true);
+
+    void signOut({ callbackUrl: "/login" }).catch((error) => {
+      console.error("Error al cerrar sesion:", error);
+      setSignOutPending(false);
+    });
+  };
+
+  if (hideHeader) {
+    return null;
+  }
 
   if (isPublicRoute) {
     return <PublicHeader logoSrc={effectiveLogoSrc} logoAlt={logoAlt} pathname={pathname} />;
@@ -181,10 +248,12 @@ export default function AppHeader({
           <MobileNav
             logoSrc={effectiveLogoSrc}
             logoAlt={logoAlt}
-            communities={communities}
-            onSelect={handleCommunityClick}
+            communities={visibleCommunities}
+            onSelect={handleCommunitySelect}
             user={effectiveUser}
             isAdmin={isAdmin}
+            onSignOut={handleSignOut}
+            signOutPending={signOutPending}
           />
         </div>
 
@@ -199,9 +268,13 @@ export default function AppHeader({
           />
         </Link>
 
-        {communities.length > 0 && (
+        {visibleCommunities.length > 0 && (
           <div className="ml-3 hidden sm:block">
-            <DropdownMenu>
+            <DropdownMenu
+              modal={false}
+              open={communityMenuOpen}
+              onOpenChange={setCommunityMenuOpen}
+            >
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
@@ -221,11 +294,11 @@ export default function AppHeader({
               >
                 <DropdownMenuLabel>Comunidades</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {communities.map((community) => (
+                {visibleCommunities.map((community) => (
                   <DropdownMenuItem
                     key={community.Path}
-                    onClick={() => handleCommunityClick(community)}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2"
+                    onSelect={() => handleCommunitySelect(community)}
+                    className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2"
                   >
                     {community.LogoUrl ? (
                       <Avatar className="h-6 w-6">
@@ -283,7 +356,11 @@ export default function AppHeader({
             <Bell className="h-5 w-5" />
           </Button>
 
-          <DropdownMenu>
+          <DropdownMenu
+            modal={false}
+            open={accountMenuOpen}
+            onOpenChange={setAccountMenuOpen}
+          >
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -309,24 +386,34 @@ export default function AppHeader({
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl border border-gray-200 bg-white shadow-lg">
+            <DropdownMenuContent
+              align="end"
+              className="w-56 rounded-2xl border border-gray-200 bg-white shadow-lg"
+            >
               <DropdownMenuLabel>Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/post-login">Panel principal</Link>
+              <DropdownMenuItem
+                onSelect={() => navigateToPath("/post-login")}
+                className="cursor-pointer"
+              >
+                Panel principal
               </DropdownMenuItem>
               {isAdmin && (
-                <DropdownMenuItem asChild>
-                  <Link href="/admin">Administración</Link>
+                <DropdownMenuItem
+                  onSelect={() => navigateToPath("/admin")}
+                  className="cursor-pointer"
+                >
+                  Administracion
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => signOut({ callbackUrl: "/login" })}
-                className="text-red-600 focus:text-red-600"
+                disabled={signOutPending}
+                onSelect={handleSignOut}
+                className="cursor-pointer text-red-600 focus:text-red-600"
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Cerrar sesión
+                {signOutPending ? "Cerrando sesion..." : "Cerrar sesion"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -394,7 +481,7 @@ function PublicHeader({
                   : { color: "#4b5563" }
               }
             >
-              Oficina Móvil
+              Oficina Movil
             </Link>
 
             <Link
@@ -406,7 +493,7 @@ function PublicHeader({
                   : { color: "#4b5563" }
               }
             >
-              Política de seguridad
+              Politica de seguridad
             </Link>
           </nav>
         </div>
@@ -439,7 +526,7 @@ function PublicMobileNav({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Abrir menú" className="rounded-full">
+        <Button variant="ghost" size="icon" aria-label="Abrir menu" className="rounded-full">
           <MenuIcon className="h-6 w-6" />
         </Button>
       </SheetTrigger>
@@ -455,18 +542,27 @@ function PublicMobileNav({
               className="h-auto w-[150px] object-contain"
             />
           </div>
-          <SheetTitle className="sr-only">Menú</SheetTitle>
+          <SheetTitle className="sr-only">Menu</SheetTitle>
         </SheetHeader>
 
         <nav className="space-y-3 px-4 pb-6 pt-4">
           {PUBLIC_NAV_ITEMS.map((item) => (
-            <Button key={item.href} asChild variant="ghost" className="w-full justify-start rounded-full">
+            <Button
+              key={item.href}
+              asChild
+              variant="ghost"
+              className="w-full justify-start rounded-full"
+            >
               <Link href={item.href}>{item.label}</Link>
             </Button>
           ))}
 
           <div className="pt-2">
-            <Button asChild className="w-full rounded-full" style={{ backgroundColor: BRAND_DARK }}>
+            <Button
+              asChild
+              className="w-full rounded-full"
+              style={{ backgroundColor: BRAND_DARK }}
+            >
               <Link href="/login">Ingresar</Link>
             </Button>
           </div>
@@ -483,6 +579,8 @@ function MobileNav({
   onSelect,
   user,
   isAdmin,
+  onSignOut,
+  signOutPending,
 }: {
   logoSrc: string;
   logoAlt: string;
@@ -490,14 +588,16 @@ function MobileNav({
   onSelect: (community: CommunityRow) => void;
   user?: AppUser | null;
   isAdmin: boolean;
+  onSignOut: () => void;
+  signOutPending: boolean;
 }) {
-  const initials = (txt?: string | null) =>
-    (txt?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "U").toUpperCase();
+  const initials = (text?: string | null) =>
+    (text?.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("") || "U").toUpperCase();
 
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="-ml-2 rounded-full" aria-label="Abrir menú">
+        <Button variant="ghost" size="icon" className="-ml-2 rounded-full" aria-label="Abrir menu">
           <MenuIcon className="h-6 w-6" />
         </Button>
       </SheetTrigger>
@@ -513,13 +613,13 @@ function MobileNav({
               className="h-auto w-[150px] object-contain"
             />
           </div>
-          <SheetTitle className="sr-only">Menú</SheetTitle>
+          <SheetTitle className="sr-only">Menu</SheetTitle>
         </SheetHeader>
 
         <nav className="space-y-6 px-4 pb-6">
           <div className="space-y-1">
             <h4 className="px-1 text-xs font-semibold uppercase text-muted-foreground">
-              Navegación
+              Navegacion
             </h4>
             <Button asChild variant="ghost" className="w-full justify-start rounded-full">
               <Link href="/post-login">
@@ -565,12 +665,8 @@ function MobileNav({
               </Avatar>
 
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium">
-                  {user?.name || "Usuario"}
-                </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {user?.email || ""}
-                </div>
+                <div className="truncate text-sm font-medium">{user?.name || "Usuario"}</div>
+                <div className="truncate text-xs text-muted-foreground">{user?.email || ""}</div>
               </div>
             </div>
 
@@ -582,7 +678,7 @@ function MobileNav({
               <Button variant="outline" className="w-full rounded-full" asChild>
                 <Link href="/admin">
                   <Shield className="mr-2 h-4 w-4" />
-                  Administración
+                  Administracion
                 </Link>
               </Button>
             )}
@@ -590,10 +686,11 @@ function MobileNav({
             <Button
               variant="destructive"
               className="w-full rounded-full"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              disabled={signOutPending}
+              onClick={onSignOut}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Cerrar sesión
+              {signOutPending ? "Cerrando sesion..." : "Cerrar sesion"}
             </Button>
           </div>
         </nav>
