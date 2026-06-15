@@ -14,8 +14,12 @@ export type ManagedPage = {
 
 let ensureAdminUsersTablePromise: Promise<void> | null = null;
 
-function normalizeEmail(email?: string | null): string {
-  return String(email ?? "").trim().toLowerCase();
+function normalizeIdentifier(value?: string | null): string {
+  return String(value ?? "").trim();
+}
+
+function normalizeComparableEmail(email?: string | null): string {
+  return normalizeIdentifier(email).toLowerCase();
 }
 
 function normalizePath(path?: string | null): string {
@@ -24,18 +28,18 @@ function normalizePath(path?: string | null): string {
 }
 
 function getBootstrapAdminEmails(): Set<string> {
-  const raw = process.env.INTERNAL_ADMIN_EMAILS ?? process.env.ADMIN_EMAILS ?? "";
+      const raw = process.env.INTERNAL_ADMIN_EMAILS ?? process.env.ADMIN_EMAILS ?? "";
 
   return new Set(
     raw
       .split(/[;,\n]/)
-      .map((value) => normalizeEmail(value))
+      .map((value) => normalizeComparableEmail(value))
       .filter(Boolean)
   );
 }
 
 export function isBootstrapAdminEmail(email?: string | null): boolean {
-  const normalized = normalizeEmail(email);
+  const normalized = normalizeComparableEmail(email);
   return !!normalized && getBootstrapAdminEmails().has(normalized);
 }
 
@@ -66,7 +70,7 @@ export async function ensureAdminUsersTable(): Promise<void> {
 }
 
 export async function isAdminPrincipal(principal: AdminPrincipal): Promise<boolean> {
-  const email = normalizeEmail(principal.email);
+  const email = normalizeIdentifier(principal.email);
   if (isBootstrapAdminEmail(email)) {
     return true;
   }
@@ -146,7 +150,7 @@ export async function upsertAdminUser(userId: string, email: string): Promise<vo
   await pool
     .request()
     .input("userId", userId)
-    .input("email", normalizeEmail(email))
+    .input("email", normalizeIdentifier(email))
     .query(/* sql */ `
       MERGE auth.AdminUsers AS target
       USING (SELECT @userId AS UserId, @email AS Email) AS source

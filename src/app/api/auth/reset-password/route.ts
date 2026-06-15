@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     if (!identifier) {
       return NextResponse.json(
-        { error: "Debes ingresar tu correo." },
+        { error: "Debes ingresar tu usuario, RUT o correo." },
         { status: 400 }
       );
     }

@@ -62,17 +62,26 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, errorCod
   }
 }
 
-function maskEmail(email: string) {
-  const [localPart = "", domainPart = ""] = String(email ?? "").trim().split("@");
-  if (!localPart || !domainPart) {
-    return "(invalid-email)";
+function maskIdentifier(identifier: string) {
+  const value = String(identifier ?? "").trim();
+  if (!value) {
+    return "(empty-identifier)";
   }
 
-  const visibleLocal = localPart.length <= 2
-    ? `${localPart[0] ?? "*"}*`
-    : `${localPart.slice(0, 2)}***`;
+  if (value.includes("@")) {
+    const [localPart = "", domainPart = ""] = value.split("@");
+    if (!localPart || !domainPart) {
+      return "(invalid-identifier)";
+    }
 
-  return `${visibleLocal}@${domainPart}`;
+    const visibleLocal = localPart.length <= 2
+      ? `${localPart[0] ?? "*"}*`
+      : `${localPart.slice(0, 2)}***`;
+
+    return `${visibleLocal}@${domainPart}`;
+  }
+
+  return value.length <= 2 ? `${value[0] ?? "*"}*` : `${value.slice(0, 2)}***`;
 }
 
 function normPath(path?: string | null): string {
@@ -128,9 +137,9 @@ async function getUserAccessPaths(
 }
 
 async function fetchLoginCandidate(
-  email: string
+  identifier: string
 ): Promise<(UserRow & { accessRows: AccessRow[] }) | null> {
-  const safeEmail = String(email ?? "").trim().toLowerCase();
+  const safeIdentifier = String(identifier ?? "").trim();
   const startedAt = Date.now();
 
   let result;
@@ -140,7 +149,7 @@ async function fetchLoginCandidate(
         const pool = await getPool();
         return pool
           .request()
-          .input("email", safeEmail)
+          .input("identifier", safeIdentifier)
           .query(/* sql */ `
             SELECT TOP 1
               u.UserId AS id,
@@ -150,7 +159,7 @@ async function fetchLoginCandidate(
               u.PasswordAlgo AS passwordAlgo,
               CAST(u.IsActive AS bit) AS isActive
             FROM auth.Users u
-            WHERE u.Email = @email;
+            WHERE u.Email = @identifier;
 
             SELECT
               p.Path,
@@ -158,7 +167,7 @@ async function fetchLoginCandidate(
             FROM auth.Users u
             JOIN cms.UserPageAccess upa ON upa.UserId = u.UserId
             JOIN cms.Pages p ON p.PageId = upa.PageId
-            WHERE u.Email = @email;
+            WHERE u.Email = @identifier;
           `);
       })(),
       AUTH_LOOKUP_TIMEOUT_MS,
@@ -166,11 +175,11 @@ async function fetchLoginCandidate(
     );
   } catch (error) {
     const elapsedMs = Date.now() - startedAt;
-    const maskedEmail = maskEmail(safeEmail);
+    const maskedIdentifier = maskIdentifier(safeIdentifier);
 
     if (error instanceof Error && error.message === AUTH_ERROR_CODES.dbTimeout) {
       console.error("[auth] login lookup timed out", {
-        email: maskedEmail,
+        identifier: maskedIdentifier,
         elapsedMs,
         timeoutMs: AUTH_LOOKUP_TIMEOUT_MS,
       });
@@ -178,7 +187,7 @@ async function fetchLoginCandidate(
     }
 
     console.error("[auth] login lookup failed", {
-      email: maskedEmail,
+      identifier: maskedIdentifier,
       elapsedMs,
       error,
     });
@@ -201,10 +210,10 @@ async function fetchLoginCandidate(
 }
 
 async function authenticateUser(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<AuthenticatedUser | null> {
-  const candidate = await fetchLoginCandidate(email);
+  const candidate = await fetchLoginCandidate(identifier);
   if (!candidate || !candidate.isActive) {
     return null;
   }
@@ -214,7 +223,7 @@ async function authenticateUser(
     isValidPassword = await argon2.verify(candidate.passwordHash, password);
   } catch (error) {
     console.error("[auth] password verification failed", {
-      email: maskEmail(candidate.email),
+      identifier: maskIdentifier(candidate.email),
       error,
     });
     throw createAuthError(AUTH_ERROR_CODES.passwordVerificationFailed);
@@ -304,10 +313,10 @@ export const authOptions: NextAuthOptions = {
     Credentials({
       name: "Inicio de sesion",
       credentials: {
-        email: {
-          label: "Correo electronico",
+        identifier: {
+          label: "Usuario, RUT o correo",
           type: "text",
-          placeholder: "usuario@dominio.com",
+          placeholder: "usuario, rut o correo",
         },
         password: {
           label: "Contrasena",
@@ -316,13 +325,14 @@ export const authOptions: NextAuthOptions = {
         },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const legacyEmail = (credentials as Record<string, string | undefined> | undefined)?.email;
+        const identifier = String(credentials?.identifier ?? legacyEmail ?? "").trim();
+        if (!identifier || !credentials?.password) {
           throw new Error("MissingCredentials");
         }
 
-        const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
-        const user = await authenticateUser(email, password);
+        const user = await authenticateUser(identifier, password);
 
         if (!user) {
           return null;
@@ -354,7 +364,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       const uid = String(token.uid ?? token.sub ?? "").trim();
-      const email = String(token.email ?? "").trim().toLowerCase();
+      const email = String(token.email ?? "").trim();
       const shouldRefreshClaims =
         trigger === "update" ||
         typeof token.isAdmin !== "boolean" ||

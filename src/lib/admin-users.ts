@@ -44,7 +44,7 @@ type UpdateManagedUserProfileInput = {
 };
 
 function normalizeEmail(email?: string | null): string {
-  return String(email ?? "").trim().toLowerCase();
+  return String(email ?? "").trim();
 }
 
 function normalizeDisplayName(displayName?: string | null): string | null {
@@ -261,7 +261,7 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
   const pageIds = uniqueIds(input.pageIds);
 
   if (!email) {
-    throw new Error("Email requerido");
+    throw new Error("Identificador requerido");
   }
   if (password.length < 8) {
     throw new Error("La contraseña debe tener al menos 8 caracteres");
@@ -275,7 +275,7 @@ export async function createManagedUser(input: CreateManagedUserInput): Promise<
 
   const existingUser = await getUserByEmail(email);
   if (existingUser) {
-    throw new Error("Ya existe un usuario con ese email");
+    throw new Error("Ya existe un usuario con ese identificador");
   }
 
   await ensureAdminUsersTable();

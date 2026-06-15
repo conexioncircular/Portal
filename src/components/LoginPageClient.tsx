@@ -22,9 +22,9 @@ function getLoginErrorMessage(error?: string | null) {
 
   switch (code) {
     case "CredentialsSignin":
-      return "Correo o contrasena incorrectos.";
+      return "Usuario, RUT, correo o contrasena incorrectos.";
     case "MissingCredentials":
-      return "Debes ingresar tu correo y contrasena.";
+      return "Debes ingresar tu usuario, RUT o correo, y tu contrasena.";
     case "AuthDbTimeout":
       return "No se pudo validar el acceso porque el servidor demoro demasiado en responder.";
     case "AuthDbUnavailable":
@@ -32,14 +32,14 @@ function getLoginErrorMessage(error?: string | null) {
     case "Configuration":
       return "No se pudo validar el acceso por un problema del servidor. Intenta nuevamente en unos minutos.";
     default:
-      return "No se pudo iniciar sesion. Revisa tu correo y contrasena.";
+      return "No se pudo iniciar sesion. Revisa tu usuario, RUT o correo, y tu contrasena.";
   }
 }
 
-async function signInWithTimeout(email: string, password: string, callbackUrl: string) {
+async function signInWithTimeout(identifier: string, password: string, callbackUrl: string) {
   return Promise.race([
     signIn("credentials", {
-      email,
+      identifier,
       password,
       redirect: false,
       callbackUrl,
@@ -148,7 +148,7 @@ export default function LoginPageClient({
   const router = useRouter();
 
   const [view, setView] = useState<"login" | "reset">("login");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -185,7 +185,7 @@ export default function LoginPageClient({
     setMessage(null);
     setLoginLoading(true);
 
-    const result = await signInWithTimeout(email, password, callbackUrl);
+    const result = await signInWithTimeout(identifier, password, callbackUrl);
 
     setLoginLoading(false);
 
@@ -209,7 +209,7 @@ export default function LoginPageClient({
     if (!identifier) {
       setMessage({
         tone: "error",
-        text: "Debes ingresar tu correo antes de recuperar la contrasena.",
+        text: "Debes ingresar tu usuario, RUT o correo antes de recuperar la contrasena.",
       });
       return;
     }
@@ -244,7 +244,7 @@ export default function LoginPageClient({
         );
       }
 
-      setEmail(identifier);
+      setIdentifier(identifier);
       setPassword("");
       setResetIdentifier(identifier);
       setNewPassword("");
@@ -313,8 +313,8 @@ export default function LoginPageClient({
                 </h1>
                 <p className="mt-3 text-sm text-[#5f6670]">
                   {view === "login"
-                    ? "Ingresa con tu correo y contrasena."
-                    : "Define una nueva contrasena para tu correo."}
+                    ? "Ingresa con tu usuario, RUT o correo, y tu contrasena."
+                    : "Define una nueva contrasena para tu usuario, RUT o correo."}
                 </p>
               </div>
 
@@ -324,8 +324,8 @@ export default function LoginPageClient({
                 {view === "login" ? (
                   <form className="space-y-3" onSubmit={onSubmit}>
                     <div className="relative">
-                      <label htmlFor="email" className="sr-only">
-                        Correo
+                      <label htmlFor="identifier" className="sr-only">
+                        Usuario, RUT o correo
                       </label>
 
                       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#70757f]">
@@ -353,12 +353,12 @@ export default function LoginPageClient({
                       </span>
 
                       <input
-                        id="email"
+                        id="identifier"
                         type="text"
-                        name="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="Correo"
+                        name="identifier"
+                        value={identifier}
+                        onChange={(event) => setIdentifier(event.target.value)}
+                        placeholder="Usuario, RUT o correo"
                         autoComplete="username"
                         className="w-full rounded-[10px] border border-[#cfd4db] bg-[#f5f6f7] py-3 pl-10 pr-4 text-[15px] text-[#111111] outline-none transition placeholder:text-[#7b818a] focus:border-[#18D6B6] focus:bg-white focus:ring-4 focus:ring-[#18D6B6]/15"
                       />
@@ -386,7 +386,7 @@ export default function LoginPageClient({
                   <form className="space-y-3" onSubmit={onResetSubmit}>
                     <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3 text-left">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Correo
+                        Usuario, RUT o correo
                       </p>
                       <p className="mt-1 text-sm font-medium text-slate-800">
                         {resetIdentifier}

@@ -2,7 +2,7 @@ import * as argon2 from "argon2";
 import { getPool } from "./db";
 
 function normalizeIdentifier(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "").trim();
 }
 
 function normalizePassword(value: unknown): string {
@@ -23,7 +23,7 @@ export async function resetPasswordByIdentifier(
   const safePassword = normalizePassword(password);
 
   if (!safeIdentifier) {
-    throw new Error("Debes ingresar tu correo.");
+    throw new Error("Debes ingresar tu usuario, RUT o correo.");
   }
 
   const pool = await getPool();
@@ -40,7 +40,7 @@ export async function resetPasswordByIdentifier(
 
   const userId = userResult.recordset?.[0]?.userId;
   if (!userId) {
-    throw new Error("No encontramos un usuario activo con ese correo.");
+    throw new Error("No encontramos un usuario activo con ese identificador.");
   }
 
   const passwordHash = await argon2.hash(safePassword);
