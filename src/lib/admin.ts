@@ -1,4 +1,3 @@
-import * as sql from "mssql";
 import { getPool } from "./db";
 
 export type AdminPrincipal = {
@@ -89,7 +88,7 @@ export async function isAdminPrincipal(principal: AdminPrincipal): Promise<boole
   }
   if (email) {
     request.input("email", email);
-    whereClause = whereClause ? `${whereClause} OR LOWER(Email) = LOWER(@email)` : "LOWER(Email) = LOWER(@email)";
+    whereClause = whereClause ? `${whereClause} OR Email = @email` : "Email = @email";
   }
 
   const result = await request.query(`

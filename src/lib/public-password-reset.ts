@@ -34,7 +34,7 @@ export async function resetPasswordByIdentifier(
       SELECT TOP 1
         u.UserId AS userId
       FROM auth.Users u
-      WHERE LOWER(u.Email) = LOWER(@identifier)
+      WHERE u.Email = @identifier
         AND ISNULL(u.IsActive, 0) = 1
     `);
 

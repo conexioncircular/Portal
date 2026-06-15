@@ -107,23 +107,29 @@ function mapAccessRows(rows: AccessRow[]): { paths: string[]; primary: string | 
 async function getUserAccessPaths(
   userId: string
 ): Promise<{ paths: string[]; primary: string | null }> {
-  const pool = await getPool();
-  const result = await pool
-    .request()
-    .input("UserId", String(userId))
-    .query(/* sql */ `
-      SELECT p.Path, upa.IsPrimary
-      FROM cms.UserPageAccess upa
-      JOIN cms.Pages p ON p.PageId = upa.PageId
-      WHERE upa.UserId = @UserId
-    `);
+  const result = await withTimeout(
+    (async () => {
+      const pool = await getPool();
+      return pool
+        .request()
+        .input("UserId", String(userId))
+        .query(/* sql */ `
+          SELECT p.Path, upa.IsPrimary
+          FROM cms.UserPageAccess upa
+          JOIN cms.Pages p ON p.PageId = upa.PageId
+          WHERE upa.UserId = @UserId
+        `);
+    })(),
+    AUTH_LOOKUP_TIMEOUT_MS,
+    AUTH_ERROR_CODES.dbTimeout
+  );
 
   return mapAccessRows(result.recordset as AccessRow[]);
 }
 
 async function fetchLoginCandidate(
   email: string
-): Promise<(UserRow & { isAdmin: boolean; accessRows: AccessRow[] }) | null> {
+): Promise<(UserRow & { accessRows: AccessRow[] }) | null> {
   const safeEmail = String(email ?? "").trim().toLowerCase();
   const startedAt = Date.now();
 
@@ -136,37 +142,15 @@ async function fetchLoginCandidate(
           .request()
           .input("email", safeEmail)
           .query(/* sql */ `
-            IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
-            BEGIN
-              CREATE TABLE auth.AdminUsers (
-                UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-                Email NVARCHAR(256) NOT NULL UNIQUE,
-                CreatedAt DATETIME2(0) NOT NULL
-                  CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
-                UpdatedAt DATETIME2(0) NOT NULL
-                  CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
-              );
-            END;
-
             SELECT TOP 1
               u.UserId AS id,
               u.Email AS email,
               u.DisplayName AS displayName,
               u.PasswordHash AS passwordHash,
               u.PasswordAlgo AS passwordAlgo,
-              CAST(u.IsActive AS bit) AS isActive,
-              CAST(
-                CASE
-                  WHEN EXISTS (
-                    SELECT 1
-                    FROM auth.AdminUsers au
-                    WHERE au.UserId = u.UserId OR LOWER(au.Email) = LOWER(u.Email)
-                  ) THEN 1
-                  ELSE 0
-                END
-              AS bit) AS isAdmin
+              CAST(u.IsActive AS bit) AS isActive
             FROM auth.Users u
-            WHERE LOWER(u.Email) = LOWER(@email);
+            WHERE u.Email = @email;
 
             SELECT
               p.Path,
@@ -174,7 +158,7 @@ async function fetchLoginCandidate(
             FROM auth.Users u
             JOIN cms.UserPageAccess upa ON upa.UserId = u.UserId
             JOIN cms.Pages p ON p.PageId = upa.PageId
-            WHERE LOWER(u.Email) = LOWER(@email);
+            WHERE u.Email = @email;
           `);
       })(),
       AUTH_LOOKUP_TIMEOUT_MS,
@@ -202,9 +186,9 @@ async function fetchLoginCandidate(
   }
 
   const recordsets = result.recordsets as unknown as Array<unknown[]> | undefined;
-  const userRecordset = (recordsets?.[0] ?? []) as Array<UserRow & { isAdmin: boolean }>;
+  const userRecordset = (recordsets?.[0] ?? []) as UserRow[];
   const accessRecordset = (recordsets?.[1] ?? []) as AccessRow[];
-  const user = userRecordset[0] as (UserRow & { isAdmin: boolean }) | undefined;
+  const user = userRecordset[0];
 
   if (!user) {
     return null;
@@ -240,7 +224,12 @@ async function authenticateUser(
     return null;
   }
 
-  const isAdmin = candidate.isAdmin || isBootstrapAdminEmail(candidate.email);
+  const isAdmin =
+    isBootstrapAdminEmail(candidate.email) ||
+    (await isAdminPrincipal({
+      userId: candidate.id,
+      email: candidate.email,
+    }).catch(() => false));
   const access = mapAccessRows(candidate.accessRows);
 
   return {

@@ -116,7 +116,7 @@ async function grantCommunityPageAccessInTransaction(
       .query(/* sql */ `
         SELECT TOP 1 UserId AS userId
         FROM auth.Users
-        WHERE LOWER(Email) = LOWER(@email)
+        WHERE Email = @email
       `);
 
     const userId = userResult.recordset?.[0]?.userId;

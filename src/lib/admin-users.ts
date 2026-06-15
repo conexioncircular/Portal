@@ -98,7 +98,7 @@ async function getUserByEmail(email: string): Promise<{ userId: string; email: s
         u.UserId AS userId,
         u.Email AS email
       FROM auth.Users u
-      WHERE LOWER(u.Email) = LOWER(@email)
+      WHERE u.Email = @email
     `);
 
   const row = result.recordset?.[0];
