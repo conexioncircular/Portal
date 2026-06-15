@@ -24,9 +24,9 @@ function buildConfig(): sql.config | string {
       encrypt: (process.env.DB_ENCRYPT ?? "true") === "true",
     },
     pool: {
-      min: Number(process.env.DB_POOL_MIN ?? 0),
+      min: Number(process.env.DB_POOL_MIN ?? 1),
       max: Number(process.env.DB_POOL_MAX ?? 5),
-      idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_MS ?? 30000),
+      idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_MS ?? 300000),
     },
   } satisfies sql.config;
 }

@@ -2,7 +2,7 @@ import { getServerSession, type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import * as argon2 from "argon2";
 import { getPool } from "./db";
-import { isAdminPrincipal } from "./admin";
+import { isAdminPrincipal, isBootstrapAdminEmail } from "./admin";
 
 type UserRow = {
   id: string;
@@ -13,11 +13,25 @@ type UserRow = {
   isActive: boolean;
 };
 
+type AccessRow = {
+  Path: string;
+  IsPrimary?: boolean;
+};
+
+type AuthenticatedUser = {
+  id: string;
+  email: string;
+  name: string;
+  isAdmin: boolean;
+  allowedPaths: string[];
+  primaryPath?: string;
+};
+
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
-function normPath(p?: string | null): string {
-  const s = String(p ?? "").trim().toLowerCase();
-  return s !== "/" && s.endsWith("/") ? s.slice(0, -1) : s;
+function normPath(path?: string | null): string {
+  const value = String(path ?? "").trim().toLowerCase();
+  return value !== "/" && value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
 function getAdminLandingPath(): string {
@@ -25,11 +39,30 @@ function getAdminLandingPath(): string {
   return candidate || "/admin";
 }
 
+function mapAccessRows(rows: AccessRow[]): { paths: string[]; primary: string | null } {
+  const paths = new Set<string>();
+
+  for (const row of rows) {
+    const path = normPath(row.Path);
+    if (path) {
+      paths.add(path);
+    }
+  }
+
+  const primaryRow = rows.find((row) => !!row.IsPrimary) ?? rows[0];
+  const primary = primaryRow?.Path ? normPath(primaryRow.Path) : null;
+
+  return {
+    paths: Array.from(paths),
+    primary,
+  };
+}
+
 async function getUserAccessPaths(
   userId: string
 ): Promise<{ paths: string[]; primary: string | null }> {
   const pool = await getPool();
-  const q = await pool
+  const result = await pool
     .request()
     .input("UserId", String(userId))
     .query(/* sql */ `
@@ -39,45 +72,120 @@ async function getUserAccessPaths(
       WHERE upa.UserId = @UserId
     `);
 
-  const rows = q.recordset as Array<{ Path: string; IsPrimary?: boolean }>;
-  const set = new Set<string>();
-
-  for (const r of rows) {
-    const p = normPath(r.Path);
-    if (p) set.add(p);
-  }
-
-  const primaryRow = rows.find((r) => !!r.IsPrimary) ?? rows[0];
-  const primary = primaryRow?.Path ? normPath(primaryRow.Path) : null;
-
-  return { paths: Array.from(set), primary };
+  return mapAccessRows(result.recordset as AccessRow[]);
 }
 
-async function verifyUser(email: string, password: string): Promise<UserRow | null> {
+async function fetchLoginCandidate(
+  email: string
+): Promise<(UserRow & { isAdmin: boolean; accessRows: AccessRow[] }) | null> {
   const pool = await getPool();
-
   const safeEmail = String(email ?? "").trim().toLowerCase();
 
-  const res = await pool
+  const result = await pool
     .request()
     .input("email", safeEmail)
     .query(/* sql */ `
+      IF OBJECT_ID(N'auth.AdminUsers', N'U') IS NULL
+      BEGIN
+        CREATE TABLE auth.AdminUsers (
+          UserId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+          Email NVARCHAR(256) NOT NULL UNIQUE,
+          CreatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_AdminUsers_CreatedAt DEFAULT SYSUTCDATETIME(),
+          UpdatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_AdminUsers_UpdatedAt DEFAULT SYSUTCDATETIME()
+        );
+      END;
+
       SELECT TOP 1
-        UserId        AS id,
-        Email         AS email,
-        DisplayName   AS displayName,
-        PasswordHash  AS passwordHash,
-        PasswordAlgo  AS passwordAlgo,
-        IsActive      AS isActive
-      FROM auth.Users
-      WHERE LOWER(Email) = LOWER(@email)
+        u.UserId AS id,
+        u.Email AS email,
+        u.DisplayName AS displayName,
+        u.PasswordHash AS passwordHash,
+        u.PasswordAlgo AS passwordAlgo,
+        CAST(u.IsActive AS bit) AS isActive,
+        CAST(
+          CASE
+            WHEN EXISTS (
+              SELECT 1
+              FROM auth.AdminUsers au
+              WHERE au.UserId = u.UserId OR LOWER(au.Email) = LOWER(u.Email)
+            ) THEN 1
+            ELSE 0
+          END
+        AS bit) AS isAdmin
+      FROM auth.Users u
+      WHERE LOWER(u.Email) = LOWER(@email);
+
+      SELECT
+        p.Path,
+        upa.IsPrimary
+      FROM auth.Users u
+      JOIN cms.UserPageAccess upa ON upa.UserId = u.UserId
+      JOIN cms.Pages p ON p.PageId = upa.PageId
+      WHERE LOWER(u.Email) = LOWER(@email);
     `);
 
-  const user = res.recordset?.[0] as UserRow | undefined;
-  if (!user || !user.isActive) return null;
+  const recordsets = result.recordsets as unknown as Array<unknown[]> | undefined;
+  const userRecordset = (recordsets?.[0] ?? []) as Array<UserRow & { isAdmin: boolean }>;
+  const accessRecordset = (recordsets?.[1] ?? []) as AccessRow[];
+  const user = userRecordset[0] as (UserRow & { isAdmin: boolean }) | undefined;
 
-  const ok = await argon2.verify(user.passwordHash, password).catch(() => false);
-  return ok ? user : null;
+  if (!user) {
+    return null;
+  }
+
+  return {
+    ...user,
+    accessRows: accessRecordset,
+  };
+}
+
+async function authenticateUser(
+  email: string,
+  password: string
+): Promise<AuthenticatedUser | null> {
+  const candidate = await fetchLoginCandidate(email);
+  if (!candidate || !candidate.isActive) {
+    return null;
+  }
+
+  const isValidPassword = await argon2.verify(candidate.passwordHash, password).catch(() => false);
+  if (!isValidPassword) {
+    return null;
+  }
+
+  const isAdmin = candidate.isAdmin || isBootstrapAdminEmail(candidate.email);
+  const access = mapAccessRows(candidate.accessRows);
+
+  return {
+    id: candidate.id,
+    email: candidate.email,
+    name: candidate.displayName ?? candidate.email,
+    isAdmin,
+    allowedPaths: isAdmin ? [] : access.paths,
+    primaryPath: isAdmin ? getAdminLandingPath() : access.primary ?? undefined,
+  };
+}
+
+function readClaimsFromUser(
+  user?: unknown
+): Omit<AuthenticatedUser, "id" | "email" | "name"> | null {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+
+  const candidate = user as Partial<AuthenticatedUser>;
+  if (typeof candidate.isAdmin !== "boolean" || !Array.isArray(candidate.allowedPaths)) {
+    return null;
+  }
+
+  return {
+    isAdmin: candidate.isAdmin,
+    allowedPaths: candidate.allowedPaths,
+    primaryPath:
+      typeof candidate.primaryPath === "string" ? candidate.primaryPath : undefined,
+  };
 }
 
 async function loadAuthorizationClaims(uid: string, email: string) {
@@ -96,8 +204,6 @@ async function loadAuthorizationClaims(uid: string, email: string) {
   if (isAdmin) {
     return {
       isAdmin,
-      // El middleware ya confía en `isAdmin`, así que evitamos inflar el JWT
-      // con todas las rutas y mantenemos el login del admin liviano.
       allowedPaths: [] as string[],
       primaryPath: getAdminLandingPath(),
     };
@@ -120,53 +226,62 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     maxAge: SESSION_MAX_AGE_SECONDS,
   },
-
   providers: [
     Credentials({
-      name: "Inicio de sesión",
+      name: "Inicio de sesion",
       credentials: {
         email: {
-          label: "Correo electrónico",
+          label: "Correo electronico",
           type: "text",
           placeholder: "usuario@dominio.com",
         },
         password: {
-          label: "Contraseña",
+          label: "Contrasena",
           type: "password",
-          placeholder: "••••••••",
+          placeholder: "********",
         },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Debes ingresar correo y contraseña");
+          throw new Error("Debes ingresar correo y contrasena");
         }
 
         const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
+        const user = await authenticateUser(email, password);
 
-        const user = await verifyUser(email, password);
-        if (!user) throw new Error("Credenciales inválidas");
+        if (!user) {
+          throw new Error("Credenciales invalidas");
+        }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.displayName ?? user.email,
-        };
+        return user;
       },
     }),
   ],
-
   callbacks: {
     async jwt({ token, user, trigger }) {
-      if (user?.id) token.uid = user.id;
-      if (user?.name) token.name = user.name;
-      if (user?.email) token.email = user.email as string;
+      const authUser = user as Partial<AuthenticatedUser> | undefined;
+
+      if (authUser?.id) {
+        token.uid = authUser.id;
+      }
+      if (authUser?.name) {
+        token.name = authUser.name;
+      }
+      if (authUser?.email) {
+        token.email = authUser.email;
+      }
+
+      const userClaims = readClaimsFromUser(authUser);
+      if (userClaims) {
+        token.isAdmin = userClaims.isAdmin;
+        token.allowedPaths = userClaims.allowedPaths;
+        token.primaryPath = userClaims.primaryPath;
+      }
 
       const uid = String(token.uid ?? token.sub ?? "").trim();
       const email = String(token.email ?? "").trim().toLowerCase();
-
       const shouldRefreshClaims =
-        !!user ||
         trigger === "update" ||
         typeof token.isAdmin !== "boolean" ||
         !Array.isArray(token.allowedPaths);
@@ -193,7 +308,6 @@ export const authOptions: NextAuthOptions = {
 
       return token;
     },
-
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.uid ?? token.sub ?? undefined;
@@ -210,7 +324,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-
   pages: {
     signIn: "/login",
     error: "/login",

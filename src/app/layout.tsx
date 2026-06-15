@@ -3,11 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { promises as fs } from "fs";
 import path from "path";
-
-// 👇 Header cliente que usa useSession
-import AppHeader from "@/components/AppHeader";
-// 👇 Proveedor de sesión (client)
-import ClientProviders from "@/components/ClientProviders";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Conexión Circular",
@@ -29,29 +25,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const footerHtml = await readFooter();
+  const footerYear = new Date().getFullYear();
 
   return (
     <html lang="es">
       <body className="antialiased">
-        {/* ✅ Proveedores cliente (SessionProvider) */}
-        <ClientProviders>
-          {/* ✅ Header cliente, sin props (usa useSession) */}
-          <AppHeader />
-
-          <div className="min-h-screen flex flex-col pt-16">
-            <main className="flex-1">{children}</main>
-
-            <footer className="bg-gray-100 border-t border-gray-200 px-4 py-6 text-center text-sm text-gray-600">
-              {footerHtml ? (
-                <div dangerouslySetInnerHTML={{ __html: footerHtml }} />
-              ) : (
-                <span suppressHydrationWarning>
-                  © {new Date().getFullYear()} Conexión Circular
-                </span>
-              )}
-            </footer>
-          </div>
-        </ClientProviders>
+        <AppShell footerHtml={footerHtml} footerYear={footerYear}>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
