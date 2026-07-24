@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { sanitizeRichHtml } from "@/lib/html-sanitizer";
 
 export type AdminNewsCommunity = {
   communityId: string;
@@ -237,7 +238,7 @@ function normalizeNewsInput(input: CreateAdminNewsInput | UpdateAdminNewsInput) 
   const title = normalizeRequiredText(input.title);
   const slug = normalizeSlug(input.slug);
   const summary = normalizeRequiredText(input.summary);
-  const bodyHtml = normalizeRequiredText(input.bodyHtml);
+  const bodyHtml = sanitizeRichHtml(normalizeRequiredText(input.bodyHtml));
   const imageUrl = normalizeOptionalText(input.imageUrl);
   const isFeatured = !!input.isFeatured;
   const isPublic = input.isPublic ?? true;

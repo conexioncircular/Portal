@@ -1,3 +1,0 @@
-{
-  "/api/communities/[slug]/news/[newsSlug]/route": "app/api/communities/[slug]/news/[newsSlug]/route.js"
-}

@@ -2,9 +2,6 @@ name: Deploy Azure App Service
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 concurrency:
   group: deploy-azure-appservice-${{ github.ref }}
@@ -12,14 +9,18 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
     name: Build and Deploy to Azure Web App
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     env:
       NEXT_TELEMETRY_DISABLED: "1"
+      AZURE_WEBAPP_NAME: Portal-ChatBot
+      AZURE_RESOURCE_GROUP: agente-chat
 
     steps:
       - name: Checkout
@@ -50,9 +51,34 @@ jobs:
           cd dist/azure-appservice
           zip -qr ../azure-appservice.zip .
 
-      - name: Deploy to Azure App Service
+      - name: Login to Azure with OIDC
+        id: azure_login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure App Service is stopped
+        run: |
+          az webapp stop \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME"
+
+      - name: Deploy clean package to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
           package: dist/azure-appservice.zip
+          type: zip
+          target-path: /home/site/wwwroot
+          clean: true
+          restart: false
+
+      - name: Keep App Service stopped
+        if: ${{ always() && steps.azure_login.outcome == 'success' }}
+        run: |
+          az webapp stop \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME"

@@ -177,6 +177,6 @@ export async function middleware(req: NextRequest) {
 // Intercepta todo excepto estáticos y APIs (ya excluidos por isPublic)
 export const config = {
   matcher: [
-    "/((?!health$|health/|debug-session$|debug-session/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|images/|static/|public/|fonts/|api/|.*\\.[\\w]+$).*)",
+    "/((?!health$|health/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|images/|static/|public/|fonts/|api/|.*\\.[\\w]+$).*)",
   ],
 };

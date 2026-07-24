@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const BRAND_DARK = "#343A50";
 const BRAND_BLUE = "#19B5E8";
-const BRAND_BLUE_SOFT = "#EAF8FD";
 
 const comunidadItems = [
   "Impacto medible y alineado con los objetivos de responsabilidad social de la Compañía.",

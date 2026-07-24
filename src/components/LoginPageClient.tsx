@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -147,18 +147,10 @@ export default function LoginPageClient({
 }: LoginPageClientProps) {
   const router = useRouter();
 
-  const [view, setView] = useState<"login" | "reset">("login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
-
-  const [resetIdentifier, setResetIdentifier] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
 
   const [message, setMessage] = useState<MessageState>(
     initialError
@@ -168,17 +160,6 @@ export default function LoginPageClient({
         }
       : null
   );
-
-  useEffect(() => {
-    if (!initialError) {
-      return;
-    }
-
-    setMessage({
-      tone: "error",
-      text: getLoginErrorMessage(initialError),
-    });
-  }, [initialError]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -199,82 +180,6 @@ export default function LoginPageClient({
 
     router.push(result.url || callbackUrl);
     router.refresh();
-  }
-
-  async function onResetSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setMessage(null);
-
-    const identifier = resetIdentifier.trim();
-    if (!identifier) {
-      setMessage({
-        tone: "error",
-        text: "Debes ingresar tu usuario, RUT o correo antes de recuperar la contrasena.",
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setMessage({
-        tone: "error",
-        text: "Las contrasenas no coinciden.",
-      });
-      return;
-    }
-
-    setResetLoading(true);
-
-    try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identifier,
-          password: newPassword,
-          confirmPassword,
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(
-          typeof payload?.error === "string"
-            ? payload.error
-            : "No se pudo actualizar la contrasena."
-        );
-      }
-
-      setIdentifier(identifier);
-      setPassword("");
-      setResetIdentifier(identifier);
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowLoginPassword(false);
-      setShowNewPassword(false);
-      setShowConfirmPassword(false);
-      setView("login");
-      setMessage({
-        tone: "success",
-        text: "Contrasena actualizada. Ya puedes iniciar sesion.",
-      });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text:
-          error instanceof Error && error.message
-            ? error.message
-            : "No se pudo actualizar la contrasena.",
-      });
-    } finally {
-      setResetLoading(false);
-    }
-  }
-
-  function openLoginView() {
-    setMessage(null);
-    setPassword("");
-    setShowLoginPassword(false);
-    setView("login");
   }
 
   return (
@@ -309,19 +214,16 @@ export default function LoginPageClient({
             <div className="w-full rounded-[22px] border border-white/70 bg-white/92 px-7 py-8 shadow-[0_14px_36px_rgba(0,0,0,0.14)] backdrop-blur-sm sm:px-8">
               <div className="mb-6 text-center">
                 <h1 className="text-[2rem] font-medium leading-none text-[#111111]">
-                  {view === "login" ? "Bienvenido" : "Recuperar acceso"}
+                  Bienvenido
                 </h1>
                 <p className="mt-3 text-sm text-[#5f6670]">
-                  {view === "login"
-                    ? "Ingresa con tu usuario, RUT o correo, y tu contrasena."
-                    : "Define una nueva contrasena para tu usuario, RUT o correo."}
+                  Ingresa con tu usuario, RUT o correo, y tu contrasena.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <MessageBox message={message} />
 
-                {view === "login" ? (
                   <form className="space-y-3" onSubmit={onSubmit}>
                     <div className="relative">
                       <label htmlFor="identifier" className="sr-only">
@@ -382,59 +284,8 @@ export default function LoginPageClient({
                       {loginLoading ? "Iniciando..." : "Iniciar sesion"}
                     </button>
                   </form>
-                ) : (
-                  <form className="space-y-3" onSubmit={onResetSubmit}>
-                    <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3 text-left">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Usuario, RUT o correo
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-slate-800">
-                        {resetIdentifier}
-                      </p>
-                    </div>
-
-                    <PasswordField
-                      id="reset-password"
-                      value={newPassword}
-                      onChange={setNewPassword}
-                      placeholder="Nueva contrasena"
-                      autoComplete="new-password"
-                      visible={showNewPassword}
-                      onToggle={() => setShowNewPassword((current) => !current)}
-                    />
-
-                    <PasswordField
-                      id="reset-password-confirm"
-                      value={confirmPassword}
-                      onChange={setConfirmPassword}
-                      placeholder="Confirmar nueva contrasena"
-                      autoComplete="new-password"
-                      visible={showConfirmPassword}
-                      onToggle={() => setShowConfirmPassword((current) => !current)}
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={resetLoading}
-                      className="mt-2 w-full rounded-[10px] bg-[#32d4c5] px-4 py-3 text-[17px] font-medium text-white shadow-[0_8px_18px_rgba(50,212,197,0.28)] transition hover:bg-[#28c7b9] focus:outline-none focus:ring-4 focus:ring-[#18D6B6]/25 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {resetLoading ? "Actualizando..." : "Actualizar contrasena"}
-                    </button>
-                  </form>
-                )}
               </div>
 
-              {view === "reset" ? (
-                <div className="mt-5 space-y-2 text-center text-[14px] text-[#222222]">
-                  <button
-                    type="button"
-                    onClick={openLoginView}
-                    className="block w-full transition hover:text-[#0f8f85]"
-                  >
-                    Volver al inicio de sesion
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

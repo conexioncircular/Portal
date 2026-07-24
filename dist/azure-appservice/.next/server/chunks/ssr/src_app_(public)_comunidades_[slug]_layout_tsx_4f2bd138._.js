@@ -1,3 +1,0 @@
-module.exports=[89117,a=>{"use strict";var b=a.i(7997);function c({children:a}){return(0,b.jsx)("div",{className:"relative min-h-screen flex flex-col bg-white text-gray-800",children:(0,b.jsx)("main",{className:"flex-1 w-full",children:a})})}a.s(["default",()=>c,"metadata",0,{title:"Comunidades | Conexión Circular",description:"Portal de comunidades del proyecto Conexión Circular"}])}];
-
-//# sourceMappingURL=src_app_%28public%29_comunidades_%5Bslug%5D_layout_tsx_4f2bd138._.js.map
