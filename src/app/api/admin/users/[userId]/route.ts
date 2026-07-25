@@ -9,7 +9,10 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export async function PATCH(req: NextRequest, routeContext: any) {
+export async function PATCH(
+  req: NextRequest,
+  routeContext: { params: Promise<{ userId: string }> }
+) {
   const guard = await requireAdminSession();
   if ("response" in guard) {
     return guard.response;

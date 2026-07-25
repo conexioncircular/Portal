@@ -1,4 +1,5 @@
 import { getPool } from "./db";
+import { sanitizeRichHtml } from "./html-sanitizer";
 
 export type Community = {
   id: string;
@@ -159,7 +160,7 @@ export async function getPublicCommunityNewsDetail(
   return {
     ...mapCommunityNewsListItem(row),
     CommunityId: String(row.CommunityId),
-    BodyHtml: row.BodyHtml == null ? null : String(row.BodyHtml),
+    BodyHtml: row.BodyHtml == null ? null : sanitizeRichHtml(row.BodyHtml),
     IsPublic: !!row.IsPublic,
     SortOrder: row.SortOrder == null ? null : Number(row.SortOrder),
     UpdatedAt: row.UpdatedAt == null ? null : (row.UpdatedAt as Date | string),

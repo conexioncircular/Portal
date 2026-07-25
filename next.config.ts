@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   images: {
+    unoptimized: true,
     remotePatterns: imageHostnames.map((hostname) => ({
       protocol: "https",
       hostname,
