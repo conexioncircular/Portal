@@ -7,8 +7,7 @@ function getCanonicalOrigin(): URL | null {
     return null;
   }
 
-  const rawValue =
-    process.env.NEXT_PUBLIC_BASE_URL?.trim() || process.env.NEXTAUTH_URL?.trim() || "";
+  const rawValue = process.env.NEXTAUTH_URL?.trim() ?? "";
 
   if (!rawValue) {
     return null;

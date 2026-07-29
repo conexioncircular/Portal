@@ -24,7 +24,10 @@ if (!(await exists(standaloneDir))) {
 }
 
 await rm(outputDir, { recursive: true, force: true });
-await cp(standaloneDir, outputDir, { recursive: true });
+await cp(standaloneDir, outputDir, {
+  recursive: true,
+  dereference: true,
+});
 
 if (await exists(staticDir)) {
   await mkdir(path.join(outputDir, ".next"), { recursive: true });
