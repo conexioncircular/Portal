@@ -38,6 +38,7 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["mssql"],
   outputFileTracingRoot: projectRoot,
   turbopack: {
     root: projectRoot,

@@ -1,7 +1,7 @@
 import * as argon2 from "argon2";
 import { randomUUID } from "node:crypto";
-import * as sql from "mssql";
-import { getPool } from "./db";
+import type * as MSSQL from "mssql";
+import { getPool, sql } from "./db";
 import { ensureAdminUsersTable, isBootstrapAdminEmail, listManagedPages } from "./admin";
 
 export type ManagedUserAccess = {
@@ -137,7 +137,7 @@ async function getUserById(userId: string): Promise<{ userId: string; email: str
 }
 
 async function setAdminFlagInTransaction(
-  transaction: sql.Transaction,
+  transaction: MSSQL.Transaction,
   userId: string,
   email: string,
   isAdmin: boolean
@@ -165,7 +165,7 @@ async function setAdminFlagInTransaction(
 }
 
 async function replaceUserAccessInTransaction(
-  transaction: sql.Transaction,
+  transaction: MSSQL.Transaction,
   userId: string,
   pageIds: string[],
   primaryPageId?: string | null

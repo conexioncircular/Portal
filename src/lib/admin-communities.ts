@@ -1,5 +1,5 @@
-import * as sql from "mssql";
-import { getPool } from "@/lib/db";
+import type * as MSSQL from "mssql";
+import { getPool, sql } from "@/lib/db";
 import { buildCommunityPath, normalizeCommunitySlug } from "@/lib/community-slug";
 
 export type AdminCommunityListItem = {
@@ -102,7 +102,7 @@ function normalizeTramoNumber(value: unknown): string | null {
 }
 
 async function grantCommunityPageAccessInTransaction(
-  transaction: sql.Transaction,
+  transaction: MSSQL.Transaction,
   pageId: string
 ): Promise<void> {
   const adminEmails = getBootstrapAdminEmails();

@@ -1,5 +1,4 @@
-import * as sql from "mssql";
-import { getPool } from "./db";
+import { getPool, sql } from "./db";
 
 export type MobileCommunity = {
   pageId: string;
