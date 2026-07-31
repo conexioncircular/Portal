@@ -341,4 +341,17 @@ body {
   padding-left: 1rem;
   color: #4b5563;
 }
+
+.news-content ul,
+.news-content ol {
+  padding-left: 1.25rem;
+}
+
+.news-content ul {
+  list-style-type: disc;
+}
+
+.news-content ol {
+  list-style-type: decimal;
+}
 }

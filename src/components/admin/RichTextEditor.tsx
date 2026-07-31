@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { Bold, Italic, Link2, List, ListOrdered } from "lucide-react";
 
 type RichTextEditorProps = {
@@ -39,6 +40,9 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
+  const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("https://");
+  const [linkError, setLinkError] = useState("");
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -91,21 +95,23 @@ export default function RichTextEditor({
     emitChange();
   }
 
-  function addLink() {
+  function openLinkEditor() {
     const selectedText = selectionRef.current?.toString().trim();
     if (!selectedText) {
-      window.alert("Selecciona primero el texto que quieres convertir en enlace.");
-      editorRef.current?.focus();
+      setLinkError("Selecciona primero el texto que quieres convertir en enlace.");
       return;
     }
 
-    const enteredLink = window.prompt("Ingresa la dirección del enlace:", "https://");
-    if (enteredLink === null) {
-      return;
-    }
+    setLinkError("");
+    setLinkUrl("https://");
+    setIsLinkEditorOpen(true);
+  }
 
-    const link = normalizeLink(enteredLink);
+  function addLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const link = normalizeLink(linkUrl);
     if (!link || !restoreSelection()) {
+      setLinkError("Ingresa una dirección válida.");
       return;
     }
 
@@ -116,6 +122,8 @@ export default function RichTextEditor({
     });
     saveSelection();
     emitChange();
+    setIsLinkEditorOpen(false);
+    setLinkError("");
   }
 
   function applyColor(color: string) {
@@ -148,7 +156,7 @@ export default function RichTextEditor({
         <button type="button" className={toolbarButtonClass} aria-label="Lista numerada" title="Lista numerada" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("insertOrderedList")}>
           <ListOrdered className="h-4 w-4" />
         </button>
-        <button type="button" className={toolbarButtonClass} aria-label="Agregar enlace" title="Agregar enlace" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={addLink}>
+        <button type="button" className={toolbarButtonClass} aria-label="Agregar enlace" title="Agregar enlace" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={openLinkEditor}>
           <Link2 className="h-4 w-4" />
         </button>
         <label className="ml-1 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600">
@@ -164,6 +172,50 @@ export default function RichTextEditor({
           />
         </label>
       </div>
+
+      {isLinkEditorOpen ? (
+        <form className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-end" onSubmit={addLink}>
+          <label className="flex-1 text-xs font-medium text-slate-700" htmlFor={`${id}-link-url`}>
+            Dirección del enlace
+            <input
+              id={`${id}-link-url`}
+              type="url"
+              inputMode="url"
+              autoFocus
+              required
+              value={linkUrl}
+              onChange={(event) => {
+                setLinkUrl(event.target.value);
+                setLinkError("");
+              }}
+              placeholder="https://ejemplo.cl"
+              className="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button type="submit" className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
+              Agregar
+            </button>
+            <button
+              type="button"
+              className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              onClick={() => {
+                setIsLinkEditorOpen(false);
+                setLinkError("");
+                editorRef.current?.focus();
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {linkError ? (
+        <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800" role="alert">
+          {linkError}
+        </p>
+      ) : null}
 
       <div
         ref={editorRef}
