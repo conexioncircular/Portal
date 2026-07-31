@@ -446,7 +446,7 @@ async function ensureCommunitiesExistInTransaction(
   const request = new sql.Request(transaction);
   const parameterNames = communityIds.map((communityId, index) => {
     const parameterName = `communityId${index}`;
-    request.input(parameterName, sql.NVarChar(50), communityId);
+    request.input(parameterName, sql.UniqueIdentifier, communityId);
     return parameterName;
   });
 
@@ -488,7 +488,7 @@ async function ensureUniqueNewsSlugInTransaction(
 
   for (const communityId of orderedCommunityIds) {
     const request = new sql.Request(transaction)
-      .input("communityId", sql.NVarChar(50), communityId)
+      .input("communityId", sql.UniqueIdentifier, communityId)
       .input("slug", sql.NVarChar(500), slug);
 
     const exclusionClause = excludeNewsId
@@ -496,7 +496,7 @@ async function ensureUniqueNewsSlugInTransaction(
       : "";
 
     if (excludeNewsId) {
-      request.input("excludeNewsId", sql.NVarChar(50), excludeNewsId);
+      request.input("excludeNewsId", sql.UniqueIdentifier, excludeNewsId);
     }
 
     const result = await request.query(/* sql */ `
@@ -529,8 +529,8 @@ async function insertNewsCommunity(
   communityId: string
 ): Promise<void> {
   await new sql.Request(transaction)
-    .input("newsId", sql.NVarChar(50), newsId)
-    .input("communityId", sql.NVarChar(50), communityId)
+    .input("newsId", sql.UniqueIdentifier, newsId)
+    .input("communityId", sql.UniqueIdentifier, communityId)
     .query(/* sql */ `
       INSERT INTO cms.NewsCommunities (NewsId, CommunityId, CreatedAt)
       VALUES (
@@ -618,9 +618,14 @@ async function insertNewsImage(
   await new sql.Request(transaction)
     .input(
       "newsImageId",
+      sql.UniqueIdentifier,
       normalizeUniqueIdentifier(image.newsImageId, "NewsImageId")
     )
-    .input("newsId", normalizeUniqueIdentifier(image.newsId, "NewsId"))
+    .input(
+      "newsId",
+      sql.UniqueIdentifier,
+      normalizeUniqueIdentifier(image.newsId, "NewsId")
+    )
     .input("imageUrl", sql.NVarChar(500), image.imageUrl)
     .input("caption", sql.NVarChar(200), image.caption)
     .input("sortOrder", sql.Int, image.sortOrder)
@@ -808,7 +813,7 @@ export async function getAdminNewsById(
   const pool = await getPool();
   const result = await pool
     .request()
-    .input("newsId", sql.NVarChar(50), normalizedNewsId)
+    .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
     .query(/* sql */ `
       SELECT TOP 1
         n.NewsId AS newsId,
@@ -842,29 +847,24 @@ export async function getAdminNewsById(
   const [imagesResult, communitiesResult] = await Promise.all([
     pool
       .request()
-    // Inferencia intencional: evita que Turbopack entregue a node-mssql
-    // un factory de tipo incompatible que termina en EPARAM validate().
-    .input(
-      "newsId",
-      normalizeUniqueIdentifier(row.newsId, "NewsId")
-    )
-    .query(/* sql */ `
-      SELECT
-        NewsImageId AS newsImageId,
-        NewsId AS newsId,
-        ImageUrl AS imageUrl,
-        Caption AS caption,
-        SortOrder AS sortOrder,
-        CAST(IsCover AS bit) AS isCover,
-        BlobName AS blobName,
-        CreatedAt AS createdAt
-      FROM cms.NewsImages
-      WHERE NewsId = @newsId
-      ORDER BY SortOrder, NewsImageId
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query(/* sql */ `
+        SELECT
+          NewsImageId AS newsImageId,
+          NewsId AS newsId,
+          ImageUrl AS imageUrl,
+          Caption AS caption,
+          SortOrder AS sortOrder,
+          CAST(IsCover AS bit) AS isCover,
+          BlobName AS blobName,
+          CreatedAt AS createdAt
+        FROM cms.NewsImages
+        WHERE NewsId = @newsId
+        ORDER BY SortOrder, NewsImageId
       `),
     pool
       .request()
-      .input("newsId", sql.NVarChar(50), normalizedNewsId)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
       .query(/* sql */ `
         SELECT
           c.CommunityId AS communityId,
@@ -945,8 +945,12 @@ export async function createAdminNews(
     );
 
     await new sql.Request(transaction)
-      .input("newsId", normalizeUniqueIdentifier(newsId, "NewsId"))
-      .input("communityId", primaryCommunityId)
+      .input(
+        "newsId",
+        sql.UniqueIdentifier,
+        normalizeUniqueIdentifier(newsId, "NewsId")
+      )
+      .input("communityId", sql.UniqueIdentifier, primaryCommunityId)
       .input("title", sql.NVarChar(sql.MAX), normalized.title)
       .input("slug", sql.NVarChar(sql.MAX), normalized.slug)
       .input("summary", sql.NVarChar(sql.MAX), normalized.summary)
@@ -1097,7 +1101,7 @@ export async function updateAdminNews(
 
   try {
     const existingNewsResult = await new sql.Request(transaction)
-      .input("newsId", newsId)
+      .input("newsId", sql.UniqueIdentifier, newsId)
       .query(/* sql */ `
         SELECT TOP 1 NewsId, CommunityId, ImageUrl
         FROM cms.News WITH (UPDLOCK, HOLDLOCK)
@@ -1119,7 +1123,7 @@ export async function updateAdminNews(
     );
 
     const existingCommunitiesResult = await new sql.Request(transaction)
-      .input("newsId", sql.NVarChar(50), newsId)
+      .input("newsId", sql.UniqueIdentifier, newsId)
       .query(/* sql */ `
         SELECT CommunityId
         FROM cms.NewsCommunities WITH (UPDLOCK, HOLDLOCK)
@@ -1168,7 +1172,7 @@ export async function updateAdminNews(
     }
 
     const existingImagesResult = await new sql.Request(transaction)
-      .input("newsId", newsId)
+      .input("newsId", sql.UniqueIdentifier, newsId)
       .query(/* sql */ `
         SELECT
           NewsImageId AS newsImageId,
@@ -1206,12 +1210,13 @@ export async function updateAdminNews(
         await new sql.Request(transaction)
           .input(
             "newsImageId",
+            sql.UniqueIdentifier,
             normalizeUniqueIdentifier(
               existingImage.newsImageId,
               "NewsImageId"
             )
           )
-          .input("newsId", newsId)
+          .input("newsId", sql.UniqueIdentifier, newsId)
           .query(/* sql */ `
             DELETE FROM cms.NewsImages
             WHERE NewsImageId = @newsImageId
@@ -1221,7 +1226,7 @@ export async function updateAdminNews(
     }
 
     await new sql.Request(transaction)
-      .input("newsId", newsId)
+      .input("newsId", sql.UniqueIdentifier, newsId)
       .query(/* sql */ `
         UPDATE cms.NewsImages
         SET SortOrder = SortOrder + 1000,
@@ -1241,9 +1246,10 @@ export async function updateAdminNews(
       await new sql.Request(transaction)
         .input(
           "newsImageId",
+          sql.UniqueIdentifier,
           normalizeUniqueIdentifier(image.newsImageId, "NewsImageId")
         )
-        .input("newsId", newsId)
+        .input("newsId", sql.UniqueIdentifier, newsId)
         .input("caption", sql.NVarChar(200), image.caption)
         .input("sortOrder", sql.Int, image.sortOrder)
         .input("isCover", sql.Bit, image.isCover)
@@ -1267,8 +1273,8 @@ export async function updateAdminNews(
     const coverImageUrl = getNewsCoverImage(finalImages)?.imageUrl ?? null;
 
     await new sql.Request(transaction)
-      .input("newsId", newsId)
-      .input("communityId", primaryCommunityId)
+      .input("newsId", sql.UniqueIdentifier, newsId)
+      .input("communityId", sql.UniqueIdentifier, primaryCommunityId)
       .input("title", sql.NVarChar(sql.MAX), normalized.title)
       .input("slug", sql.NVarChar(sql.MAX), normalized.slug)
       .input("summary", sql.NVarChar(sql.MAX), normalized.summary)
@@ -1299,8 +1305,8 @@ export async function updateAdminNews(
 
     for (const communityId of removedCommunityIds) {
       await new sql.Request(transaction)
-        .input("newsId", sql.NVarChar(50), newsId)
-        .input("communityId", sql.NVarChar(50), communityId)
+        .input("newsId", sql.UniqueIdentifier, newsId)
+        .input("communityId", sql.UniqueIdentifier, communityId)
         .query(/* sql */ `
           DELETE FROM cms.NewsCommunities
           WHERE NewsId = CAST(@newsId AS UNIQUEIDENTIFIER)

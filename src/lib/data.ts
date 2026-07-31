@@ -1,4 +1,4 @@
-import { getPool } from "./db";
+import { getPool, sql } from "./db";
 import { sanitizeRichHtml } from "./html-sanitizer";
 import { mapNewsImageRow, type NewsImage } from "./news-images";
 
@@ -89,7 +89,7 @@ export async function listPublicCommunityNews(
   const pool = await getPool();
   const result = await pool
     .request()
-    .input("communityId", communityId)
+    .input("communityId", sql.UniqueIdentifier, communityId)
     .input("limit", limit)
     .input("offset", offset)
     .query(/* sql */ `
@@ -146,7 +146,7 @@ export async function getPublicCommunityNewsDetail(
   const pool = await getPool();
   const result = await pool
     .request()
-    .input("communityId", communityId)
+    .input("communityId", sql.UniqueIdentifier, communityId)
     .input("newsSlug", normSlug(newsSlug))
     .query(/* sql */ `
       SELECT TOP 1
@@ -191,7 +191,7 @@ export async function getPublicCommunityNewsDetail(
 
   const imagesResult = await pool
     .request()
-    .input("newsId", String(row.NewsId))
+    .input("newsId", sql.UniqueIdentifier, String(row.NewsId))
     .query(/* sql */ `
       SELECT
         NewsImageId AS newsImageId,
