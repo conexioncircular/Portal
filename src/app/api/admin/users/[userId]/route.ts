@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { updateManagedUserProfile } from "@/lib/admin-users";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_USER_ERROR_PREFIXES = ["UserId requerido", "Usuario no encontrado"] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -31,7 +30,13 @@ export async function PATCH(
     return NextResponse.json({ user });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo actualizar el perfil del usuario") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo actualizar el perfil del usuario",
+          SAFE_USER_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

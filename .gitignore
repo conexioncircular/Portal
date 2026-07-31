@@ -20,12 +20,17 @@
 # production
 /build
 /dist/
+/portal-azure.zip
+
+# local Azure Storage emulator data
+/__azurite_db_*.json
 
 # misc
 .DS_Store
 *.pem
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

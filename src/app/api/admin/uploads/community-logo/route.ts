@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { uploadCommunityLogo } from "@/lib/azure-blob";
 import { normalizeCommunitySlug } from "@/lib/community-slug";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_LOGO_ERROR_PREFIXES = [
+  "Formato de imagen no soportado",
+  "El logo seleccionado esta vacio",
+  "El logo supera el maximo permitido",
+  "La firma binaria del logo no corresponde",
+  "Debes ingresar el nombre de la comunidad",
+] as const;
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdminSession();
@@ -42,7 +47,13 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo subir el logo") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo subir el logo",
+          SAFE_LOGO_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

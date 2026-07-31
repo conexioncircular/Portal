@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { updateManagedUserPassword } from "@/lib/admin-users";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_USER_ERROR_PREFIXES = [
+  "UserId requerido",
+  "Usuario no encontrado",
+  "La contraseña debe ",
+] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -26,7 +29,13 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo actualizar la contraseña") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo actualizar la contraseña",
+          SAFE_USER_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

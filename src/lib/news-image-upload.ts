@@ -17,18 +17,6 @@ export const NEWS_IMAGE_ALLOWED_FILE_TYPES = [
     defaultExtension: "webp",
     label: "WEBP",
   },
-  {
-    mimeType: "image/gif",
-    extensions: ["gif"],
-    defaultExtension: "gif",
-    label: "GIF",
-  },
-  {
-    mimeType: "image/avif",
-    extensions: ["avif"],
-    defaultExtension: "avif",
-    label: "AVIF",
-  },
 ] as const;
 
 export const NEWS_IMAGE_ACCEPT = NEWS_IMAGE_ALLOWED_FILE_TYPES
@@ -39,7 +27,8 @@ export const NEWS_IMAGE_ALLOWED_LABEL = NEWS_IMAGE_ALLOWED_FILE_TYPES
   .map((item) => item.label)
   .join(", ");
 
-export const NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB = 10;
+export const NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB = 5;
+export const NEWS_IMAGE_MAX_FILES = 10;
 
 export type AllowedNewsImageType = (typeof NEWS_IMAGE_ALLOWED_FILE_TYPES)[number];
 
@@ -51,14 +40,9 @@ export function getAllowedNewsImageType(input: {
     .trim()
     .toLowerCase();
 
-  if (normalizedMimeType) {
-    const byMimeType = NEWS_IMAGE_ALLOWED_FILE_TYPES.find(
-      (item) => item.mimeType === normalizedMimeType
-    );
-    if (byMimeType) {
-      return byMimeType;
-    }
-  }
+  const byMimeType = NEWS_IMAGE_ALLOWED_FILE_TYPES.find(
+    (item) => item.mimeType === normalizedMimeType
+  );
 
   const extension = String(input.fileName ?? "")
     .trim()
@@ -66,15 +50,15 @@ export function getAllowedNewsImageType(input: {
     .pop()
     ?.toLowerCase();
 
-  if (!extension) {
+  if (!byMimeType || !extension) {
     return null;
   }
 
-  return (
-    NEWS_IMAGE_ALLOWED_FILE_TYPES.find((item) =>
-      item.extensions.some((itemExtension) => itemExtension === extension)
-    ) ?? null
-  );
+  return byMimeType.extensions.some(
+    (itemExtension) => itemExtension === extension
+  )
+    ? byMimeType
+    : null;
 }
 
 export function parseNewsImageMaxUploadMb(value: string | undefined): number {
@@ -83,5 +67,36 @@ export function parseNewsImageMaxUploadMb(value: string | undefined): number {
     return NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB;
   }
 
-  return Math.min(parsed, 50);
+  return Math.min(parsed, NEWS_IMAGE_DEFAULT_MAX_UPLOAD_MB);
+}
+
+function hasBytes(
+  bytes: Uint8Array,
+  expected: readonly number[],
+  offset = 0
+): boolean {
+  if (bytes.length < offset + expected.length) {
+    return false;
+  }
+
+  return expected.every((value, index) => bytes[offset + index] === value);
+}
+
+export function hasValidNewsImageSignature(
+  bytes: Uint8Array,
+  mimeType: AllowedNewsImageType["mimeType"]
+): boolean {
+  switch (mimeType) {
+    case "image/jpeg":
+      return hasBytes(bytes, [0xff, 0xd8, 0xff]);
+    case "image/png":
+      return hasBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    case "image/webp":
+      return (
+        hasBytes(bytes, [0x52, 0x49, 0x46, 0x46]) &&
+        hasBytes(bytes, [0x57, 0x45, 0x42, 0x50], 8)
+      );
+    default:
+      return false;
+  }
 }

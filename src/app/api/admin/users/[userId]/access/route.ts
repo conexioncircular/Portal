@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { replaceManagedUserAccess } from "@/lib/admin-users";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_USER_ERROR_PREFIXES = [
+  "UserId requerido",
+  "Usuario no encontrado",
+  "PageId inválido",
+] as const;
 
 export async function PUT(
   req: NextRequest,
@@ -32,7 +35,13 @@ export async function PUT(
     return NextResponse.json({ user });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo actualizar el acceso del usuario") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo actualizar el acceso del usuario",
+          SAFE_USER_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

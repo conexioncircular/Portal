@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { createManagedUser, listManagedUsers } from "@/lib/admin-users";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_USER_ERROR_PREFIXES = [
+  "La contrasena debe ",
+  "La contraseña debe ",
+  "PageId inválido",
+  "Identificador requerido",
+  "Ya existe un usuario ",
+] as const;
 
 export async function GET() {
   const guard = await requireAdminSession();
@@ -39,7 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ user }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo crear el usuario") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo crear el usuario",
+          SAFE_USER_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

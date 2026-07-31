@@ -51,13 +51,40 @@ function includesQuery(item: AdminNewsListItem, query: string): boolean {
   const haystack = [
     item.title,
     item.slug,
-    item.communityName,
-    item.communitySlug,
+    ...item.communities.flatMap((community) => [
+      community.name,
+      community.slug,
+    ]),
   ]
     .join(" ")
     .toLowerCase();
 
   return haystack.includes(query);
+}
+
+function getCommunityPresentation(item: AdminNewsListItem): {
+  label: string;
+  detail: string;
+  title: string;
+} {
+  const names = item.communities.map((community) => community.name);
+  if (names.length <= 1) {
+    return {
+      label: names[0] ?? item.communityName,
+      detail: item.communitySlug,
+      title: names[0] ?? item.communityName,
+    };
+  }
+
+  const visibleNames = names.slice(0, 3);
+  const hiddenCount = names.length - visibleNames.length;
+  return {
+    label: `${names.length} comunidades`,
+    detail: `${visibleNames.join(", ")}${
+      hiddenCount > 0 ? ` y ${hiddenCount} más` : ""
+    }`,
+    title: names.join(", "),
+  };
 }
 
 export default function AdminNewsList({ items }: AdminNewsListProps) {
@@ -70,11 +97,13 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
   const communities = useMemo(() => {
     const map = new Map<string, { id: string; label: string }>();
     for (const item of items) {
-      if (!map.has(item.communityId)) {
-        map.set(item.communityId, {
-          id: item.communityId,
-          label: item.communityName,
-        });
+      for (const community of item.communities) {
+        if (!map.has(community.communityId)) {
+          map.set(community.communityId, {
+            id: community.communityId,
+            label: community.name,
+          });
+        }
       }
     }
 
@@ -91,7 +120,10 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
         return false;
       }
 
-      if (communityId !== "__all__" && item.communityId !== communityId) {
+      if (
+        communityId !== "__all__" &&
+        !item.communityIds.includes(communityId)
+      ) {
         return false;
       }
 
@@ -294,11 +326,21 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
-              {filteredItems.map((item) => (
+              {filteredItems.map((item) => {
+                const communityPresentation = getCommunityPresentation(item);
+
+                return (
                 <tr key={item.newsId} className="align-top">
-                  <td className="px-4 py-4">
-                    <div className="font-medium text-slate-900">{item.communityName}</div>
-                    <div className="text-xs text-slate-500">{item.communitySlug}</div>
+                  <td
+                    className="px-4 py-4"
+                    title={communityPresentation.title}
+                  >
+                    <div className="font-medium text-slate-900">
+                      {communityPresentation.label}
+                    </div>
+                    <div className="max-w-xs text-xs text-slate-500">
+                      {communityPresentation.detail}
+                    </div>
                   </td>
                   <td className="px-4 py-4 font-medium text-slate-900">{item.title}</td>
                   <td className="px-4 py-4 text-slate-600">{item.slug}</td>
@@ -323,7 +365,8 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

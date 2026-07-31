@@ -1,6 +1,9 @@
 import "server-only";
 
-import { BlobServiceClient } from "@azure/storage-blob";
+import {
+  BlobServiceClient,
+  type ContainerClient,
+} from "@azure/storage-blob";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -8,28 +11,36 @@ import { getPool } from "@/lib/db";
 import { normalizeCommunitySlug } from "@/lib/community-slug";
 import {
   NEWS_IMAGE_ALLOWED_LABEL,
+  NEWS_IMAGE_MAX_FILES,
   getAllowedNewsImageType,
+  hasValidNewsImageSignature,
   parseNewsImageMaxUploadMb,
 } from "@/lib/news-image-upload";
 import {
   COMMUNITY_LOGO_ALLOWED_LABEL,
   getAllowedCommunityLogoType,
+  parseCommunityLogoMaxUploadMb,
 } from "@/lib/community-logo-upload";
 
 type AzureBlobConfig = {
   connectionString: string;
   containerName: string;
-  maxUploadBytes: number;
-  maxUploadMb: number;
+};
+
+export type UploadedNewsImage = {
+  url: string;
+  blobName: string;
+};
+
+export type NewsImageBlobCleanupResult = {
+  deletedBlobNames: string[];
+  skippedInUseBlobNames: string[];
+  failedBlobNames: string[];
 };
 
 function getAzureBlobConfig(): AzureBlobConfig {
   const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim();
   const containerName = process.env.AZURE_STORAGE_CONTAINER_NAME?.trim();
-  const maxUploadMb = parseNewsImageMaxUploadMb(
-    process.env.AZURE_STORAGE_MAX_UPLOAD_MB
-  );
-
   if (!connectionString) {
     throw new Error(
       "Falta AZURE_STORAGE_CONNECTION_STRING para subir imagenes."
@@ -45,8 +56,6 @@ function getAzureBlobConfig(): AzureBlobConfig {
   return {
     connectionString,
     containerName,
-    maxUploadMb,
-    maxUploadBytes: Math.round(maxUploadMb * 1024 * 1024),
   };
 }
 
@@ -131,10 +140,7 @@ function buildCommunityLogoBlobName(
 export async function uploadNewsImage(
   file: File,
   communityId: string
-): Promise<{
-  url: string;
-  blobName: string;
-}> {
+): Promise<UploadedNewsImage> {
   const allowedType = getAllowedNewsImageType({
     mimeType: file.type,
     fileName: file.name,
@@ -146,17 +152,27 @@ export async function uploadNewsImage(
     );
   }
 
-  const { connectionString, containerName, maxUploadBytes, maxUploadMb } =
-    getAzureBlobConfig();
-
   if (!file.size) {
     throw new Error("La imagen seleccionada esta vacia.");
   }
+
+  const maxUploadMb = parseNewsImageMaxUploadMb(
+    process.env.AZURE_STORAGE_MAX_UPLOAD_MB
+  );
+  const maxUploadBytes = Math.round(maxUploadMb * 1024 * 1024);
 
   if (file.size > maxUploadBytes) {
     throw new Error(`La imagen supera el maximo permitido de ${maxUploadMb} MB.`);
   }
 
+  const data = Buffer.from(await file.arrayBuffer());
+  if (!hasValidNewsImageSignature(data, allowedType.mimeType)) {
+    throw new Error(
+      "La firma binaria del archivo no coincide con un formato de imagen permitido."
+    );
+  }
+
+  const { connectionString, containerName } = getAzureBlobConfig();
   const blobServiceClient =
     BlobServiceClient.fromConnectionString(connectionString);
   const containerClient = blobServiceClient.getContainerClient(containerName);
@@ -169,7 +185,6 @@ export async function uploadNewsImage(
     communityId
   );
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  const data = Buffer.from(await file.arrayBuffer());
 
   await blockBlobClient.uploadData(data, {
     blobHTTPHeaders: {
@@ -182,6 +197,154 @@ export async function uploadNewsImage(
     url: blockBlobClient.url,
     blobName,
   };
+}
+
+function normalizeManagedNewsBlobNames(
+  blobNames: readonly string[]
+): string[] {
+  return Array.from(
+    new Set(
+      blobNames
+        .map((blobName) => String(blobName ?? "").trim())
+        .filter(
+          (blobName) =>
+            blobName.startsWith("news/") &&
+            !blobName.includes("\\") &&
+            !blobName.split("/").some((segment) => segment === "..") &&
+            blobName.length <= 500
+        )
+    )
+  );
+}
+
+async function deleteNewsImageBlobsDirectly(
+  blobNames: readonly string[]
+): Promise<NewsImageBlobCleanupResult> {
+  const normalizedBlobNames = normalizeManagedNewsBlobNames(blobNames);
+  const result: NewsImageBlobCleanupResult = {
+    deletedBlobNames: [],
+    skippedInUseBlobNames: [],
+    failedBlobNames: [],
+  };
+
+  if (normalizedBlobNames.length === 0) {
+    return result;
+  }
+
+  let containerClient: ContainerClient;
+  try {
+    const { connectionString, containerName } = getAzureBlobConfig();
+    containerClient = BlobServiceClient.fromConnectionString(
+      connectionString
+    ).getContainerClient(containerName);
+  } catch {
+    return {
+      ...result,
+      failedBlobNames: normalizedBlobNames,
+    };
+  }
+
+  for (const blobName of normalizedBlobNames) {
+    try {
+      await containerClient.getBlockBlobClient(blobName).deleteIfExists({
+        deleteSnapshots: "include",
+      });
+      result.deletedBlobNames.push(blobName);
+    } catch {
+      result.failedBlobNames.push(blobName);
+    }
+  }
+
+  return result;
+}
+
+export async function uploadNewsImages(
+  files: readonly File[],
+  communityId: string
+): Promise<UploadedNewsImage[]> {
+  if (files.length === 0) {
+    throw new Error("Debes seleccionar al menos una imagen.");
+  }
+
+  if (files.length > NEWS_IMAGE_MAX_FILES) {
+    throw new Error(
+      `Una noticia puede tener como maximo ${NEWS_IMAGE_MAX_FILES} imagenes.`
+    );
+  }
+
+  const uploadedImages: UploadedNewsImage[] = [];
+
+  try {
+    for (const file of files) {
+      uploadedImages.push(await uploadNewsImage(file, communityId));
+    }
+    return uploadedImages;
+  } catch (error) {
+    const cleanupResult = await deleteNewsImageBlobsDirectly(
+      uploadedImages.map((image) => image.blobName)
+    );
+
+    if (cleanupResult.failedBlobNames.length > 0) {
+      console.error("[news-images] partial upload cleanup failed", {
+        blobNames: cleanupResult.failedBlobNames,
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function deleteUnusedNewsImageBlobs(
+  blobNames: readonly string[]
+): Promise<NewsImageBlobCleanupResult> {
+  const normalizedBlobNames = normalizeManagedNewsBlobNames(blobNames);
+  const result: NewsImageBlobCleanupResult = {
+    deletedBlobNames: [],
+    skippedInUseBlobNames: [],
+    failedBlobNames: [],
+  };
+
+  if (normalizedBlobNames.length === 0) {
+    return result;
+  }
+
+  let pool: Awaited<ReturnType<typeof getPool>>;
+  try {
+    pool = await getPool();
+  } catch {
+    return {
+      ...result,
+      failedBlobNames: normalizedBlobNames,
+    };
+  }
+
+  const unusedBlobNames: string[] = [];
+  for (const blobName of normalizedBlobNames) {
+    try {
+      const usageResult = await pool
+        .request()
+        .input("blobName", blobName)
+        .query(/* sql */ `
+          SELECT TOP 1 NewsImageId
+          FROM cms.NewsImages
+          WHERE BlobName = @blobName
+        `);
+
+      if (usageResult.recordset?.[0]) {
+        result.skippedInUseBlobNames.push(blobName);
+      } else {
+        unusedBlobNames.push(blobName);
+      }
+    } catch {
+      result.failedBlobNames.push(blobName);
+    }
+  }
+
+  const directCleanupResult = await deleteNewsImageBlobsDirectly(unusedBlobNames);
+  result.deletedBlobNames.push(...directCleanupResult.deletedBlobNames);
+  result.failedBlobNames.push(...directCleanupResult.failedBlobNames);
+
+  return result;
 }
 
 export async function uploadCommunityLogo(
@@ -202,8 +365,11 @@ export async function uploadCommunityLogo(
     );
   }
 
-  const { connectionString, containerName, maxUploadBytes, maxUploadMb } =
-    getAzureBlobConfig();
+  const maxUploadMb = parseCommunityLogoMaxUploadMb(
+    process.env.AZURE_STORAGE_MAX_UPLOAD_MB
+  );
+  const maxUploadBytes = Math.round(maxUploadMb * 1024 * 1024);
+  const { connectionString, containerName } = getAzureBlobConfig();
 
   if (!file.size) {
     throw new Error("El logo seleccionado esta vacio.");

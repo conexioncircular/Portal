@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { createAdminCommunity, listAdminCommunities } from "@/lib/admin-communities";
+import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+const SAFE_COMMUNITY_ERROR_PREFIXES = [
+  "Nombre ",
+  "Región ",
+  "Localidad ",
+  "Tipo ",
+  "Tramo ",
+  "Logo ",
+  "Ya existe una comunidad ",
+  "Ya existe una pagina ",
+] as const;
 
 export async function GET() {
   const guard = await requireAdminSession();
@@ -20,7 +28,7 @@ export async function GET() {
     return NextResponse.json({ items });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudieron cargar las comunidades") },
+      { error: getSafeApiErrorMessage(error, "No se pudieron cargar las comunidades") },
       { status: 400 }
     );
   }
@@ -47,7 +55,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(created, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: getErrorMessage(error, "No se pudo guardar la comunidad") },
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo guardar la comunidad",
+          SAFE_COMMUNITY_ERROR_PREFIXES
+        ),
+      },
       { status: 400 }
     );
   }

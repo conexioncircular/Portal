@@ -6,6 +6,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import WhatsAppFloating from "@/components/WhatsAppFloating";
 import CommunityLogoDisplay from "@/components/community/CommunityLogoDisplay";
+import NewsImageCarousel, {
+  type PublicNewsImage,
+} from "@/components/news/NewsImageCarousel";
 import { getCommunityBySlug, getPublicCommunityNewsDetail } from "@/lib/data";
 
 type ParamsShape = { slug: string; newsSlug: string };
@@ -42,6 +45,34 @@ export default async function NoticiaDetallePage({ params }: Props) {
     return notFound();
   }
 
+  const storedImages: PublicNewsImage[] = [...(item.Images ?? [])]
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder ||
+        left.newsImageId.localeCompare(right.newsImageId)
+    )
+    .map((image) => ({
+      newsImageId: image.newsImageId,
+      imageUrl: image.imageUrl,
+      caption: image.caption,
+      sortOrder: image.sortOrder,
+      isCover: image.isCover,
+    }));
+  const carouselImages: PublicNewsImage[] =
+    storedImages.length > 0
+      ? storedImages
+      : item.ImageUrl
+        ? [
+            {
+              newsImageId: `legacy-${item.NewsId}`,
+              imageUrl: item.ImageUrl,
+              caption: null,
+              sortOrder: 1,
+              isCover: true,
+            },
+          ]
+        : [];
+
   return (
     <main className="min-h-screen bg-[#f7f7f5] px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto w-full max-w-6xl space-y-5">
@@ -56,22 +87,12 @@ export default async function NoticiaDetallePage({ params }: Props) {
         </div>
 
         <article className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm">
-          {item.ImageUrl ? (
-            <div className="relative overflow-hidden bg-slate-100">
-              <div className="relative flex min-h-[280px] items-center justify-center px-4 py-5 md:min-h-[360px] md:px-8 md:py-8">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.ImageUrl}
-                  alt={item.Title}
-                  className="h-auto max-h-[70vh] w-auto max-w-full object-contain"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex aspect-[16/5] w-full items-center justify-center bg-gray-100 text-sm text-gray-500">
-              Sin imagen disponible
-            </div>
-          )}
+          {carouselImages.length > 0 ? (
+            <NewsImageCarousel
+              images={carouselImages}
+              newsTitle={item.Title}
+            />
+          ) : null}
 
           <div className="space-y-6 p-6 md:p-12">
             <header className="space-y-4">

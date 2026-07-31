@@ -70,7 +70,7 @@ export default async function AdminPage() {
               Gestión de usuarios
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Consola dedicada para crear usuarios, editar perfiles, actualizar contraseñas y asignar accesos al portal.
+              Crea usuarios, actualiza sus datos y define a qué comunidades pueden acceder.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -78,7 +78,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestión interna de cuentas.
+                Usuarios y accesos.
               </span>
             </div>
           </Link>
@@ -94,7 +94,7 @@ export default async function AdminPage() {
               Gestión de noticias
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Espacio editorial para revisar el listado, crear noticias nuevas y editar imágenes almacenadas en Azure Blob Storage.
+              Crea y edita noticias, selecciona dónde se publican y administra sus imágenes.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -102,7 +102,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestión de contenido público.
+                Noticias y publicaciones.
               </span>
             </div>
           </Link>
@@ -118,7 +118,7 @@ export default async function AdminPage() {
               Gestión de comunidades
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Alta y edición de comunidades, estado activo y logo asociado a cada página.
+              Crea y actualiza comunidades, su información principal, estado y logo.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition group-hover:bg-slate-800">
@@ -126,7 +126,7 @@ export default async function AdminPage() {
                 <ArrowRight className="h-4 w-4" />
               </span>
               <span className="text-sm text-slate-500">
-                Gestión territorial.
+                Datos de comunidades.
               </span>
             </div>
           </Link>

@@ -1,5 +1,6 @@
 import { getPool } from "./db";
 import { sanitizeRichHtml } from "./html-sanitizer";
+import { mapNewsImageRow, type NewsImage } from "./news-images";
 
 export type Community = {
   id: string;
@@ -23,6 +24,7 @@ export type CommunityNewsListItem = {
 export type CommunityNewsDetail = CommunityNewsListItem & {
   CommunityId: string;
   BodyHtml: string | null;
+  Images?: NewsImage[];
   IsPublic: boolean;
   SortOrder: number | null;
   UpdatedAt: Date | string | null;
@@ -92,24 +94,39 @@ export async function listPublicCommunityNews(
     .input("offset", offset)
     .query(/* sql */ `
       SELECT
-        NewsId,
-        Title,
-        Slug,
-        Summary,
-        ImageUrl,
-        CAST(ISNULL(IsFeatured, 0) AS bit) AS IsFeatured,
-        PublishedAt,
-        CreatedAt,
+        n.NewsId,
+        n.Title,
+        n.Slug,
+        n.Summary,
+        COALESCE(coverImage.ImageUrl, firstImage.ImageUrl, n.ImageUrl) AS ImageUrl,
+        CAST(ISNULL(n.IsFeatured, 0) AS bit) AS IsFeatured,
+        n.PublishedAt,
+        n.CreatedAt,
         COUNT(1) OVER() AS TotalRows
-      FROM cms.News
-      WHERE CommunityId = @communityId
-        AND IsPublic = 1
-      ORDER BY IsFeatured DESC,
-               CASE WHEN SortOrder IS NULL THEN 1 ELSE 0 END ASC,
-               COALESCE(SortOrder, 9999) ASC,
-               COALESCE(PublishedAt, CreatedAt) DESC,
-               CreatedAt DESC,
-               NewsId DESC
+      FROM cms.News AS n
+      INNER JOIN cms.NewsCommunities AS nc
+        ON nc.NewsId = n.NewsId
+       AND nc.CommunityId = @communityId
+      OUTER APPLY (
+        SELECT TOP (1) ni.ImageUrl
+        FROM cms.NewsImages AS ni
+        WHERE ni.NewsId = n.NewsId
+          AND ni.IsCover = 1
+        ORDER BY ni.SortOrder, ni.NewsImageId
+      ) AS coverImage
+      OUTER APPLY (
+        SELECT TOP (1) ni.ImageUrl
+        FROM cms.NewsImages AS ni
+        WHERE ni.NewsId = n.NewsId
+        ORDER BY ni.SortOrder, ni.NewsImageId
+      ) AS firstImage
+      WHERE n.IsPublic = 1
+      ORDER BY n.IsFeatured DESC,
+               CASE WHEN n.SortOrder IS NULL THEN 1 ELSE 0 END ASC,
+               COALESCE(n.SortOrder, 9999) ASC,
+               COALESCE(n.PublishedAt, n.CreatedAt) DESC,
+               n.CreatedAt DESC,
+               n.NewsId DESC
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
     `);
 
@@ -133,23 +150,38 @@ export async function getPublicCommunityNewsDetail(
     .input("newsSlug", normSlug(newsSlug))
     .query(/* sql */ `
       SELECT TOP 1
-        NewsId,
-        CommunityId,
-        Title,
-        Slug,
-        Summary,
-        BodyHtml,
-        ImageUrl,
-        CAST(ISNULL(IsFeatured, 0) AS bit) AS IsFeatured,
-        CAST(ISNULL(IsPublic, 0) AS bit) AS IsPublic,
-        SortOrder,
-        PublishedAt,
-        CreatedAt,
-        UpdatedAt
-      FROM cms.News
-      WHERE CommunityId = @communityId
-        AND LOWER(Slug) = LOWER(@newsSlug)
-        AND IsPublic = 1
+        n.NewsId,
+        nc.CommunityId,
+        n.Title,
+        n.Slug,
+        n.Summary,
+        n.BodyHtml,
+        COALESCE(coverImage.ImageUrl, firstImage.ImageUrl, n.ImageUrl) AS ImageUrl,
+        CAST(ISNULL(n.IsFeatured, 0) AS bit) AS IsFeatured,
+        CAST(ISNULL(n.IsPublic, 0) AS bit) AS IsPublic,
+        n.SortOrder,
+        n.PublishedAt,
+        n.CreatedAt,
+        n.UpdatedAt
+      FROM cms.News AS n
+      INNER JOIN cms.NewsCommunities AS nc
+        ON nc.NewsId = n.NewsId
+       AND nc.CommunityId = @communityId
+      OUTER APPLY (
+        SELECT TOP (1) ni.ImageUrl
+        FROM cms.NewsImages AS ni
+        WHERE ni.NewsId = n.NewsId
+          AND ni.IsCover = 1
+        ORDER BY ni.SortOrder, ni.NewsImageId
+      ) AS coverImage
+      OUTER APPLY (
+        SELECT TOP (1) ni.ImageUrl
+        FROM cms.NewsImages AS ni
+        WHERE ni.NewsId = n.NewsId
+        ORDER BY ni.SortOrder, ni.NewsImageId
+      ) AS firstImage
+      WHERE LOWER(n.Slug) = LOWER(@newsSlug)
+        AND n.IsPublic = 1
     `);
 
   const row = result.recordset?.[0];
@@ -157,10 +189,31 @@ export async function getPublicCommunityNewsDetail(
     return null;
   }
 
+  const imagesResult = await pool
+    .request()
+    .input("newsId", String(row.NewsId))
+    .query(/* sql */ `
+      SELECT
+        NewsImageId AS newsImageId,
+        NewsId AS newsId,
+        ImageUrl AS imageUrl,
+        Caption AS caption,
+        SortOrder AS sortOrder,
+        CAST(IsCover AS bit) AS isCover,
+        BlobName AS blobName,
+        CreatedAt AS createdAt
+      FROM cms.NewsImages
+      WHERE NewsId = CAST(@newsId AS uniqueidentifier)
+      ORDER BY SortOrder, NewsImageId
+    `);
+
   return {
     ...mapCommunityNewsListItem(row),
     CommunityId: String(row.CommunityId),
     BodyHtml: row.BodyHtml == null ? null : sanitizeRichHtml(row.BodyHtml),
+    Images: (imagesResult.recordset ?? []).map((imageRow) =>
+      mapNewsImageRow(imageRow)
+    ),
     IsPublic: !!row.IsPublic,
     SortOrder: row.SortOrder == null ? null : Number(row.SortOrder),
     UpdatedAt: row.UpdatedAt == null ? null : (row.UpdatedAt as Date | string),

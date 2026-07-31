@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
-import { uploadNewsImage } from "@/lib/azure-blob";
+import { uploadNewsImages } from "@/lib/azure-blob";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const safePrefixes = [
+    "Debes seleccionar al menos una imagen",
+    "Debes seleccionar una comunidad",
+    "Formato de imagen no soportado",
+    "La imagen seleccionada esta vacia",
+    "La imagen supera el maximo permitido",
+    "La firma binaria del archivo no coincide",
+    "Una noticia puede tener como maximo",
+    "La comunidad seleccionada no existe",
+  ];
+
+  return safePrefixes.some((prefix) => error.message.startsWith(prefix))
+    ? error.message
+    : fallback;
 }
 
 export async function POST(req: NextRequest) {
@@ -17,12 +34,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const formData = await req.formData();
-    const file = formData.get("file");
+    const files = [
+      ...formData.getAll("files"),
+      ...formData.getAll("file"),
+    ].filter((value): value is File => value instanceof File);
     const communityId = String(formData.get("communityId") ?? "").trim();
 
-    if (!(file instanceof File)) {
+    if (files.length === 0) {
       return NextResponse.json(
-        { error: "Debes seleccionar una imagen valida." },
+        { error: "Debes seleccionar al menos una imagen valida." },
         { status: 400 }
       );
     }
@@ -34,9 +54,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const uploaded = await uploadNewsImage(file, communityId);
+    const uploaded = await uploadNewsImages(files, communityId);
+    const firstImage = uploaded[0];
+
+    const responseItems = uploaded.map((item, index) => ({
+      ...item,
+      index,
+      originalName: files[index]?.name,
+    }));
+
     return NextResponse.json(
-      { url: uploaded.url, blobName: uploaded.blobName },
+      {
+        items: responseItems,
+        // Compatibilidad temporal con consumidores de una sola imagen.
+        url: firstImage?.url,
+        blobName: firstImage?.blobName,
+      },
       { status: 201 }
     );
   } catch (error: unknown) {
