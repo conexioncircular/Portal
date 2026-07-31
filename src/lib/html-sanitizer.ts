@@ -25,12 +25,22 @@ export function sanitizeRichHtml(value: unknown): string {
       "h4",
       "blockquote",
       "a",
+      "span",
       "hr",
       "code",
       "pre",
     ],
     allowedAttributes: {
       a: ["href", "title", "target", "rel"],
+      span: ["style"],
+    },
+    allowedStyles: {
+      span: {
+        color: [
+          /^#[0-9a-f]{3,8}$/i,
+          /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i,
+        ],
+      },
     },
     allowedSchemes: ["http", "https", "mailto", "tel"],
     allowProtocolRelative: false,
@@ -41,9 +51,8 @@ export function sanitizeRichHtml(value: unknown): string {
         tagName,
         attribs: {
           ...attribs,
-          ...(attribs.target === "_blank"
-            ? { rel: "noopener noreferrer" }
-            : {}),
+          target: "_blank",
+          rel: "noopener noreferrer",
         },
       }),
     },

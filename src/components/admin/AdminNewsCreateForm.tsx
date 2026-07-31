@@ -11,6 +11,7 @@ import AdminNewsImagesField, {
   type ExistingAdminNewsImageItem,
   type NewAdminNewsImageItem,
 } from "@/components/admin/AdminNewsImagesField";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NEWS_IMAGE_MAX_FILES } from "@/lib/news-image-upload";
@@ -666,11 +667,13 @@ export default function AdminNewsCreateForm({
           <label className="text-sm font-medium text-slate-700" htmlFor="summary">
             Resumen
           </label>
-          <textarea
+          <RichTextEditor
             id="summary"
             value={form.summary}
-            onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-            className="min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-300"
+            onChange={(summary) => setForm((current) => ({ ...current, summary }))}
+            minHeightClassName="min-h-28"
+            placeholder="Escribe un resumen de la noticia..."
+            disabled={isBusy || saveCompleted}
             required
           />
         </div>
@@ -679,11 +682,13 @@ export default function AdminNewsCreateForm({
           <label className="text-sm font-medium text-slate-700" htmlFor="bodyHtml">
             Cuerpo de la noticia
           </label>
-          <textarea
+          <RichTextEditor
             id="bodyHtml"
             value={form.bodyHtml}
-            onChange={(event) => setForm((current) => ({ ...current, bodyHtml: event.target.value }))}
-            className="min-h-72 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-800 outline-none transition focus:border-slate-300"
+            onChange={(bodyHtml) => setForm((current) => ({ ...current, bodyHtml }))}
+            minHeightClassName="min-h-72"
+            placeholder="Escribe el contenido de la noticia..."
+            disabled={isBusy || saveCompleted}
             required
           />
         </div>

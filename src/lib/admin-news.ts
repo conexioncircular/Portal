@@ -389,7 +389,7 @@ function normalizeNewsInput(
   const communitySelection = normalizeAdminNewsCommunitySelection(input);
   const title = normalizeRequiredText(input.title);
   const slug = normalizeSlug(input.slug);
-  const summary = normalizeRequiredText(input.summary);
+  const summary = sanitizeRichHtml(normalizeRequiredText(input.summary));
   const bodyHtml = sanitizeRichHtml(normalizeRequiredText(input.bodyHtml));
   const imageUrl = normalizeOptionalText(input.imageUrl);
   const images = normalizeImageWriteInputs(input.images);

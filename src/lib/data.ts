@@ -1,4 +1,5 @@
 import { getPool, sql } from "./db";
+import sanitizeHtml from "sanitize-html";
 import { sanitizeRichHtml } from "./html-sanitizer";
 import { mapNewsImageRow, type NewsImage } from "./news-images";
 
@@ -45,11 +46,17 @@ function mapCommunityRow(row: Record<string, unknown>): Community {
 }
 
 function mapCommunityNewsListItem(row: Record<string, unknown>): CommunityNewsListItem {
+  const summary = row.Summary == null
+    ? null
+    : sanitizeHtml(String(row.Summary), { allowedTags: [], allowedAttributes: {} })
+        .replace(/\s+/g, " ")
+        .trim() || null;
+
   return {
     NewsId: String(row.NewsId),
     Title: String(row.Title ?? ""),
     Slug: String(row.Slug ?? ""),
-    Summary: row.Summary == null ? null : String(row.Summary),
+    Summary: summary,
     ImageUrl: row.ImageUrl == null ? null : String(row.ImageUrl),
     IsFeatured: !!row.IsFeatured,
     PublishedAt: row.PublishedAt == null ? null : (row.PublishedAt as Date | string),
@@ -209,6 +216,7 @@ export async function getPublicCommunityNewsDetail(
 
   return {
     ...mapCommunityNewsListItem(row),
+    Summary: row.Summary == null ? null : sanitizeRichHtml(row.Summary),
     CommunityId: String(row.CommunityId),
     BodyHtml: row.BodyHtml == null ? null : sanitizeRichHtml(row.BodyHtml),
     Images: (imagesResult.recordset ?? []).map((imageRow) =>

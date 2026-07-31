@@ -107,9 +107,10 @@ export default async function NoticiaDetallePage({ params }: Props) {
                   </h1>
 
                   {item.Summary ? (
-                    <p className="max-w-3xl text-lg leading-8 text-gray-600">
-                      {item.Summary}
-                    </p>
+                    <div
+                      className="news-content max-w-3xl text-lg leading-8 text-gray-600"
+                      dangerouslySetInnerHTML={{ __html: item.Summary }}
+                    />
                   ) : null}
                 </div>
 
