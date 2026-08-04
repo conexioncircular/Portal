@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { PenSquare, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { PenSquare, Search, Trash2 } from "lucide-react";
 import type { AdminNewsListItem } from "@/lib/admin-news";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,11 +89,14 @@ function getCommunityPresentation(item: AdminNewsListItem): {
 }
 
 export default function AdminNewsList({ items }: AdminNewsListProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [communityId, setCommunityId] = useState("__all__");
   const [visibility, setVisibility] = useState("__all__");
   const [featured, setFeatured] = useState("__all__");
   const [sortBy, setSortBy] = useState<SortOption>("updated-desc");
+  const [deletingNewsId, setDeletingNewsId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const communities = useMemo(() => {
     const map = new Map<string, { id: string; label: string }>();
@@ -189,6 +193,31 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
     setVisibility("__all__");
     setFeatured("__all__");
     setSortBy("updated-desc");
+  }
+
+  async function deleteNews(item: AdminNewsListItem) {
+    if (!window.confirm(`¿Eliminar definitivamente la noticia "${item.title}"?`)) {
+      return;
+    }
+
+    setDeletingNewsId(item.newsId);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/admin/news/${item.newsId}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo eliminar la noticia");
+      }
+      router.refresh();
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "No se pudo eliminar la noticia"
+      );
+    } finally {
+      setDeletingNewsId(null);
+    }
   }
 
   if (items.length === 0) {
@@ -306,6 +335,12 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
         </div>
       </div>
 
+      {deleteError ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {deleteError}
+        </p>
+      ) : null}
+
       {filteredItems.length === 0 ? (
         <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
           No hay noticias que coincidan con los filtros actuales.
@@ -322,7 +357,7 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
                 <th className="px-4 py-3 font-medium">Destacada</th>
                 <th className="px-4 py-3 font-medium">Fecha de carga</th>
                 <th className="px-4 py-3 font-medium">Fecha de edición</th>
-                <th className="px-4 py-3 font-medium text-right">Acción</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -350,7 +385,8 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
                   <td className="px-4 py-4 text-slate-600">
                     {formatDateTime(item.updatedAt ?? item.createdAt)}
                   </td>
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-4 py-4">
+                    <div className="flex justify-end gap-2">
                     <Button
                       asChild
                       type="button"
@@ -363,6 +399,18 @@ export default function AdminNewsList({ items }: AdminNewsListProps) {
                         Editar
                       </Link>
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                      disabled={deletingNewsId === item.newsId}
+                      onClick={() => void deleteNews(item)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deletingNewsId === item.newsId ? "Eliminando..." : "Eliminar"}
+                    </Button>
+                    </div>
                   </td>
                 </tr>
                 );

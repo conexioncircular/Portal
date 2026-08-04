@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import {
+  deleteAdminNews,
   getAdminNewsById,
   getNewNewsImageBlobNames,
   parseAdminNewsCommunityIds,
@@ -139,6 +140,38 @@ export async function PATCH(req: NextRequest, routeContext: RouteContext) {
 
     return NextResponse.json(
       { error: getErrorMessage(error, "No se pudo actualizar la noticia") },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(_req: NextRequest, routeContext: RouteContext) {
+  const guard = await requireAdminSession();
+  if ("response" in guard) {
+    return guard.response;
+  }
+
+  try {
+    const { newsId } = await routeContext.params;
+    const deleted = await deleteAdminNews(newsId);
+    const cleanupResult = await deleteUnusedNewsImageBlobs(
+      deleted.removedBlobNames
+    );
+
+    if (cleanupResult.failedBlobNames.length > 0) {
+      console.error("[admin-news] post-delete blob cleanup failed", {
+        newsId,
+        blobNames: cleanupResult.failedBlobNames,
+      });
+    }
+
+    return NextResponse.json({
+      newsId: deleted.newsId,
+      cleanupPendingBlobNames: cleanupResult.failedBlobNames,
+    });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { error: getErrorMessage(error, "No se pudo eliminar la noticia") },
       { status: 400 }
     );
   }

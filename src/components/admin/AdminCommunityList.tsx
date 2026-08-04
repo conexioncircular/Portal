@@ -2,7 +2,8 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
-import { PenSquare, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { PenSquare, Search, Trash2 } from "lucide-react";
 import type { AdminCommunityListItem } from "@/lib/admin-communities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,12 +88,15 @@ function getUniqueOptions(
 }
 
 export default function AdminCommunityList({ items }: AdminCommunityListProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("__all__");
   const [region, setRegion] = useState("__all__");
   const [tipo, setTipo] = useState("__all__");
   const [tramo, setTramo] = useState("__all__");
   const [sortBy, setSortBy] = useState<SortOption>("name-asc");
+  const [deletingCommunityId, setDeletingCommunityId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const deferredQuery = useDeferredValue(query);
 
   const regions = useMemo(() => getUniqueOptions(items, (item) => item.region), [items]);
@@ -188,6 +192,31 @@ export default function AdminCommunityList({ items }: AdminCommunityListProps) {
     setTipo("__all__");
     setTramo("__all__");
     setSortBy("name-asc");
+  }
+
+  async function deleteCommunity(item: AdminCommunityListItem) {
+    if (!window.confirm(`¿Eliminar definitivamente la comunidad "${item.name}"?`)) {
+      return;
+    }
+
+    setDeletingCommunityId(item.communityId);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/admin/communities/${item.communityId}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo eliminar la comunidad");
+      }
+      router.refresh();
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "No se pudo eliminar la comunidad"
+      );
+    } finally {
+      setDeletingCommunityId(null);
+    }
   }
 
   if (items.length === 0) {
@@ -328,6 +357,12 @@ export default function AdminCommunityList({ items }: AdminCommunityListProps) {
         </div>
       </div>
 
+      {deleteError ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {deleteError}
+        </p>
+      ) : null}
+
       {filteredItems.length === 0 ? (
         <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
           No hay comunidades que coincidan con la búsqueda o filtros actuales.
@@ -342,7 +377,7 @@ export default function AdminCommunityList({ items }: AdminCommunityListProps) {
                 <th className="px-4 py-3 font-medium">Región</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
                 <th className="px-4 py-3 font-medium">Tramo</th>
-                <th className="px-4 py-3 font-medium text-right">Acción</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -366,7 +401,8 @@ export default function AdminCommunityList({ items }: AdminCommunityListProps) {
                   <td className="px-4 py-4 text-slate-600">{formatValue(item.region)}</td>
                   <td className="px-4 py-4 text-slate-600">{formatValue(item.tipo)}</td>
                   <td className="px-4 py-4 text-slate-600">{formatValue(item.tramo)}</td>
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-4 py-4">
+                    <div className="flex justify-end gap-2">
                     <Button
                       asChild
                       type="button"
@@ -379,6 +415,18 @@ export default function AdminCommunityList({ items }: AdminCommunityListProps) {
                         Editar
                       </Link>
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                      disabled={deletingCommunityId === item.communityId}
+                      onClick={() => void deleteCommunity(item)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deletingCommunityId === item.communityId ? "Eliminando..." : "Eliminar"}
+                    </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
-import { getAdminCommunityById, updateAdminCommunity } from "@/lib/admin-communities";
+import {
+  deleteAdminCommunity,
+  getAdminCommunityById,
+  updateAdminCommunity,
+} from "@/lib/admin-communities";
 import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
@@ -19,6 +23,7 @@ const SAFE_COMMUNITY_ERROR_PREFIXES = [
   "Logo ",
   "CommunityId obligatorio",
   "Comunidad no encontrada",
+  "No se puede eliminar la comunidad",
   "Ya existe una comunidad ",
   "Ya existe una pagina ",
 ] as const;
@@ -73,6 +78,30 @@ export async function PATCH(req: NextRequest, routeContext: RouteContext) {
         error: getSafeApiErrorMessage(
           error,
           "No se pudo actualizar la comunidad",
+          SAFE_COMMUNITY_ERROR_PREFIXES
+        ),
+      },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(_req: NextRequest, routeContext: RouteContext) {
+  const guard = await requireAdminSession();
+  if ("response" in guard) {
+    return guard.response;
+  }
+
+  try {
+    const { communityId } = await routeContext.params;
+    await deleteAdminCommunity(communityId);
+    return NextResponse.json({ communityId });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo eliminar la comunidad",
           SAFE_COMMUNITY_ERROR_PREFIXES
         ),
       },

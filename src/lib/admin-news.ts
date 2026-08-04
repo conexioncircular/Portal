@@ -78,6 +78,11 @@ export type UpdateAdminNewsResult = {
   removedBlobNames: string[];
 };
 
+export type DeleteAdminNewsResult = {
+  newsId: string;
+  removedBlobNames: string[];
+};
+
 type NormalizedNewsInput = {
   requestedCommunityId: string | null;
   communityIds: string[];
@@ -918,6 +923,69 @@ export async function getAdminNewsById(
     createdAt: mapNullableDate(row.createdAt),
     updatedAt: mapNullableDate(row.updatedAt),
   };
+}
+
+export async function deleteAdminNews(
+  newsId: string
+): Promise<DeleteAdminNewsResult> {
+  const normalizedNewsId = normalizeUniqueIdentifier(newsId, "NewsId");
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+  let committed = false;
+
+  await transaction.begin();
+  try {
+    const newsResult = await new sql.Request(transaction)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query(/* sql */ `
+        SELECT TOP 1 NewsId
+        FROM cms.News WITH (UPDLOCK, HOLDLOCK)
+        WHERE NewsId = @newsId
+      `);
+
+    if (!newsResult.recordset?.[0]) {
+      throw new Error("Noticia no encontrada");
+    }
+
+    const imagesResult = await new sql.Request(transaction)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query(/* sql */ `
+        SELECT BlobName
+        FROM cms.NewsImages WITH (UPDLOCK, HOLDLOCK)
+        WHERE NewsId = @newsId
+          AND BlobName IS NOT NULL
+      `);
+
+    const removedBlobNames = Array.from(
+      new Set(
+        (imagesResult.recordset ?? [])
+          .map((row) => String(row.BlobName ?? "").trim())
+          .filter(Boolean)
+      )
+    );
+
+    await new sql.Request(transaction)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query("DELETE FROM cms.NewsCommunities WHERE NewsId = @newsId");
+
+    await new sql.Request(transaction)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query("DELETE FROM cms.NewsImages WHERE NewsId = @newsId");
+
+    await new sql.Request(transaction)
+      .input("newsId", sql.UniqueIdentifier, normalizedNewsId)
+      .query("DELETE FROM cms.News WHERE NewsId = @newsId");
+
+    await transaction.commit();
+    committed = true;
+
+    return { newsId: normalizedNewsId, removedBlobNames };
+  } catch (error) {
+    if (!committed) {
+      await transaction.rollback().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 export async function createAdminNews(

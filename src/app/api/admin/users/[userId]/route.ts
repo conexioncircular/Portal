@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-session";
-import { updateManagedUserProfile } from "@/lib/admin-users";
+import { deleteManagedUser, updateManagedUserProfile } from "@/lib/admin-users";
 import { getSafeApiErrorMessage } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SAFE_USER_ERROR_PREFIXES = ["UserId requerido", "Usuario no encontrado"] as const;
+const SAFE_USER_ERROR_PREFIXES = [
+  "UserId requerido",
+  "UserId inválido",
+  "Usuario no encontrado",
+  "No puedes eliminar tu propio usuario",
+  "No se puede eliminar un administrador protegido",
+] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -34,6 +40,33 @@ export async function PATCH(
         error: getSafeApiErrorMessage(
           error,
           "No se pudo actualizar el perfil del usuario",
+          SAFE_USER_ERROR_PREFIXES
+        ),
+      },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  routeContext: { params: Promise<{ userId: string }> }
+) {
+  const guard = await requireAdminSession();
+  if ("response" in guard) {
+    return guard.response;
+  }
+
+  try {
+    const { userId } = await routeContext.params;
+    await deleteManagedUser(userId, String(guard.session.user?.id ?? ""));
+    return NextResponse.json({ userId });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: getSafeApiErrorMessage(
+          error,
+          "No se pudo eliminar el usuario",
           SAFE_USER_ERROR_PREFIXES
         ),
       },

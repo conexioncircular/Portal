@@ -14,6 +14,7 @@ import {
   Search,
   Shield,
   Sparkles,
+  Trash2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -474,6 +475,7 @@ export default function AdminConsole() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [accessSaving, setAccessSaving] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [notice, setNotice] = useState<NoticeState>(null);
@@ -761,6 +763,36 @@ export default function AdminConsole() {
       setNotice({ tone: "error", message });
     } finally {
       setAccessSaving(false);
+    }
+  }
+
+  async function handleDeleteUser(user: AdminUser) {
+    if (!window.confirm(`¿Eliminar definitivamente el usuario "${user.email}"?`)) {
+      return;
+    }
+
+    setDeletingUserId(user.userId);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`/api/admin/users/${user.userId}`, {
+        method: "DELETE",
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          isErrorResponse(payload) ? payload.error : "No se pudo eliminar el usuario"
+        );
+      }
+
+      await refreshData("Usuario eliminado correctamente");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo eliminar el usuario";
+      setErrorMessage(message);
+      setNotice({ tone: "error", message });
+    } finally {
+      setDeletingUserId(null);
     }
   }
 
@@ -1235,6 +1267,16 @@ export default function AdminConsole() {
                               onClick={() => openUserPassword(user)}
                             >
                               Contraseña
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full border-red-200 bg-white text-red-700 hover:bg-red-50 hover:text-red-800"
+                              disabled={deletingUserId === user.userId}
+                              onClick={() => void handleDeleteUser(user)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {deletingUserId === user.userId ? "Eliminando..." : "Eliminar"}
                             </Button>
                           </div>
                         </div>

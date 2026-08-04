@@ -464,3 +464,60 @@ export async function updateManagedUserProfile(
 
   return updated;
 }
+
+export async function deleteManagedUser(
+  userId: string,
+  currentUserId: string
+): Promise<void> {
+  const normalizedUserId = String(userId ?? "").trim();
+  const normalizedCurrentUserId = normalizeUserId(currentUserId);
+
+  if (!normalizedUserId) {
+    throw new Error("UserId requerido");
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedUserId)) {
+    throw new Error("UserId inválido");
+  }
+
+  const existingUser = await getUserById(normalizedUserId);
+  if (!existingUser) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  if (normalizeUserId(existingUser.userId) === normalizedCurrentUserId) {
+    throw new Error("No puedes eliminar tu propio usuario");
+  }
+
+  if (isBootstrapAdminEmail(existingUser.email)) {
+    throw new Error("No se puede eliminar un administrador protegido");
+  }
+
+  await ensureAdminUsersTable();
+
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+  let committed = false;
+
+  await transaction.begin();
+  try {
+    await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, normalizedUserId)
+      .query("DELETE FROM cms.UserPageAccess WHERE UserId = @userId");
+
+    await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, normalizedUserId)
+      .query("DELETE FROM auth.AdminUsers WHERE UserId = @userId");
+
+    await new sql.Request(transaction)
+      .input("userId", sql.UniqueIdentifier, normalizedUserId)
+      .query("DELETE FROM auth.Users WHERE UserId = @userId");
+
+    await transaction.commit();
+    committed = true;
+  } catch (error) {
+    if (!committed) {
+      await transaction.rollback().catch(() => undefined);
+    }
+    throw error;
+  }
+}

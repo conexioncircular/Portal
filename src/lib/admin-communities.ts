@@ -63,7 +63,12 @@ function normalizeOptionalText(
 }
 
 function normalizeCommunityId(value: unknown): string {
-  return String(value ?? "").trim();
+  const normalized = String(value ?? "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    normalized
+  )
+    ? normalized
+    : "";
 }
 
 function normalizeEmail(value: string): string {
@@ -356,6 +361,73 @@ export async function getAdminCommunityById(
 
   const row = result.recordset?.[0];
   return row ? mapCommunityRow(row) : null;
+}
+
+export async function deleteAdminCommunity(communityId: string): Promise<void> {
+  const normalizedCommunityId = normalizeCommunityId(communityId);
+  if (!normalizedCommunityId) {
+    throw new Error("CommunityId obligatorio");
+  }
+
+  const pool = await getPool();
+  const transaction = new sql.Transaction(pool);
+  let committed = false;
+
+  await transaction.begin();
+  try {
+    const communityResult = await new sql.Request(transaction)
+      .input("communityId", sql.UniqueIdentifier, normalizedCommunityId)
+      .query(/* sql */ `
+        SELECT TOP 1 CommunityId
+        FROM cms.Communities WITH (UPDLOCK, HOLDLOCK)
+        WHERE CommunityId = @communityId
+      `);
+
+    if (!communityResult.recordset?.[0]) {
+      throw new Error("Comunidad no encontrada");
+    }
+
+    const newsResult = await new sql.Request(transaction)
+      .input("communityId", sql.UniqueIdentifier, normalizedCommunityId)
+      .query(/* sql */ `
+        SELECT TOP 1 NewsId
+        FROM cms.News
+        WHERE CommunityId = @communityId
+        UNION ALL
+        SELECT TOP 1 NewsId
+        FROM cms.NewsCommunities
+        WHERE CommunityId = @communityId
+      `);
+
+    if (newsResult.recordset?.[0]) {
+      throw new Error(
+        "No se puede eliminar la comunidad mientras tenga noticias asociadas"
+      );
+    }
+
+    await new sql.Request(transaction)
+      .input("communityId", sql.UniqueIdentifier, normalizedCommunityId)
+      .query(/* sql */ `
+        DELETE upa
+        FROM cms.UserPageAccess AS upa
+        INNER JOIN cms.Pages AS p ON p.PageId = upa.PageId
+        WHERE p.CommunityId = @communityId;
+
+        DELETE FROM cms.Pages
+        WHERE CommunityId = @communityId;
+
+        DELETE FROM cms.Communities
+        WHERE CommunityId = @communityId;
+      `);
+
+    await transaction.commit();
+    committed = true;
+  } catch (error) {
+    if (!committed) {
+      await transaction.rollback().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 export async function createAdminCommunity(
