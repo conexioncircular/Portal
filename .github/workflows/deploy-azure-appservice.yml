@@ -21,6 +21,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
       AZURE_WEBAPP_NAME: Portal-ChatBot
       AZURE_RESOURCE_GROUP: agente-chat
+      NEXT_PUBLIC_MAIN_SITE_URL: ${{ secrets.NEXT_PUBLIC_MAIN_SITE_URL }}
+      NEXT_PUBLIC_COMMUNITIES_URL: ${{ secrets.NEXT_PUBLIC_COMMUNITIES_URL }}
 
     steps:
       - name: Checkout
