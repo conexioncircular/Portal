@@ -503,11 +503,11 @@ export function PublicHeader({
 
         <div className="ml-auto hidden lg:flex">
           <Link
-            href="/login"
+            href="https://comunidades.conexioncircular.cl/login"
             className="rounded-full px-7 py-3 text-[16px] font-semibold text-white transition hover:opacity-92"
             style={{ backgroundColor: BRAND_DARK }}
           >
-            Ingresar
+            Ingresar a mi comunidad
           </Link>
         </div>
 
@@ -566,7 +566,7 @@ function PublicMobileNav({
               className="w-full rounded-full"
               style={{ backgroundColor: BRAND_DARK }}
             >
-              <Link href="/login">Ingresar</Link>
+              <Link href="https://comunidades.conexioncircular.cl/login">Ingresar a mi comunidad</Link>
             </Button>
           </div>
         </nav>

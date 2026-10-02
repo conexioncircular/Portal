@@ -2,19 +2,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-function getCanonicalOrigin(): URL | null {
-  if (process.env.NODE_ENV !== "production") {
-    return null;
-  }
+function getSiteOrigin(rawValue: string | undefined, fallbackHostname: string): URL | null {
+  const value = rawValue?.trim() ||
+    (process.env.NODE_ENV === "production" ? `https://${fallbackHostname}` : "");
 
-  const rawValue = process.env.NEXTAUTH_URL?.trim() ?? "";
-
-  if (!rawValue) {
+  if (!value) {
     return null;
   }
 
   try {
-    return new URL(rawValue);
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? new URL(url.origin) : null;
   } catch {
     return null;
   }
@@ -22,52 +20,51 @@ function getCanonicalOrigin(): URL | null {
 
 function isLocalHostname(hostname: string) {
   const value = String(hostname ?? "").trim().toLowerCase();
-  return value === "localhost" || value === "127.0.0.1" || value === "::1";
+  return value === "localhost" || value === "127.0.0.1" || value === "::1" || value === "[::1]";
 }
 
 function getRequestHostname(req: NextRequest) {
   const forwardedHost = req.headers.get("x-forwarded-host");
-  const rawHost = (forwardedHost?.split(",")[0] ?? req.nextUrl.hostname).trim().toLowerCase();
+  const rawHost = forwardedHost?.split(",")[0]?.trim() ||
+    req.headers.get("host")?.trim() || req.nextUrl.host;
 
-  return rawHost.split(":")[0];
+  try {
+    return new URL(`http://${rawHost}`).hostname.toLowerCase();
+  } catch {
+    return req.nextUrl.hostname.toLowerCase();
+  }
 }
 
-function isDocumentNavigation(req: NextRequest) {
-  if (req.headers.has("rsc") || req.headers.has("next-router-state-tree")) {
-    return false;
-  }
-
-  if (req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch") {
-    return false;
-  }
-
-  const secFetchDest = req.headers.get("sec-fetch-dest");
-  if (secFetchDest && secFetchDest !== "document") {
-    return false;
-  }
-
-  const accept = req.headers.get("accept") ?? "";
-  return accept.includes("text/html");
-}
-
-function getCanonicalRedirect(req: NextRequest): URL | null {
-  if (!isDocumentNavigation(req)) {
-    return null;
-  }
-
-  const canonicalOrigin = getCanonicalOrigin();
-  if (!canonicalOrigin) {
-    return null;
-  }
-
+// Routing de dominio independiente de NEXTAUTH_URL y de los permisos del usuario.
+function getHostnameRedirect(req: NextRequest): URL | null {
   const requestHostname = getRequestHostname(req);
-  const canonicalHostname = canonicalOrigin.hostname.toLowerCase();
-
-  if (!requestHostname || requestHostname === canonicalHostname || isLocalHostname(requestHostname)) {
+  if (isLocalHostname(requestHostname)) {
     return null;
   }
 
-  return new URL(`${req.nextUrl.pathname}${req.nextUrl.search}`, canonicalOrigin);
+  const mainOrigin = getSiteOrigin(process.env.NEXT_PUBLIC_MAIN_SITE_URL, "conexioncircular.cl");
+  const communitiesOrigin = getSiteOrigin(
+    process.env.NEXT_PUBLIC_COMMUNITIES_URL,
+    "comunidades.conexioncircular.cl"
+  );
+
+  if (!mainOrigin || !communitiesOrigin ||
+    requestHostname !== mainOrigin.hostname.toLowerCase() ||
+    requestHostname === communitiesOrigin.hostname.toLowerCase()) {
+    return null;
+  }
+
+  const pathname = norm(req.nextUrl.pathname);
+  const isPortalPath = ["/login", "/post-login", "/unauthorized", "/comunidades", "/admin"]
+    .some((base) => pathname === base || pathname.startsWith(`${base}/`));
+  if (!isPortalPath) {
+    return null;
+  }
+
+  const url = new URL(communitiesOrigin.origin);
+  url.pathname = req.nextUrl.pathname;
+  url.search = req.nextUrl.search;
+  return url;
 }
 
 // Normaliza: minúsculas y sin "/" final (salvo raíz)
@@ -118,10 +115,10 @@ function isPublic(pathname: string) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const normalizedPath = norm(pathname);
-  const canonicalRedirect = getCanonicalRedirect(req);
+  const hostnameRedirect = getHostnameRedirect(req);
 
-  if (canonicalRedirect) {
-    return NextResponse.redirect(canonicalRedirect, 308);
+  if (hostnameRedirect) {
+    return NextResponse.redirect(hostnameRedirect, 308);
   }
 
   // Deja pasar rutas públicas
